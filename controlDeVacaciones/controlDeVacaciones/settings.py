@@ -73,6 +73,8 @@ TEMPLATES = [
 # BASE DE DATOS (MySQL)
 # ==============================================================================
 
+import dj_database_url
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -86,6 +88,13 @@ DATABASES = {
         }
     }
 }
+
+# Configuración automática para Railway/Render usando DATABASE_URL
+if 'DATABASE_URL' in os.environ:
+    DATABASES['default'] = dj_database_url.config(
+        conn_max_age=600,
+        ssl_require=True
+    )
 
 
 # ==============================================================================
