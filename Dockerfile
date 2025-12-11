@@ -8,6 +8,7 @@ ENV PYTHONUNBUFFERED=1
 # Instalar dependencias del sistema necesarias para mysqlclient
 RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev \
+    libpq-dev \
     build-essential \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
