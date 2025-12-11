@@ -11,10 +11,10 @@ BASE_DIR = Path(__file__).resolve().parent
 # ==============================================================================
 # ⚠️ ADVERTENCIA: SEGURIDAD
 # ==============================================================================
-SECRET_KEY = get_random_secret_key()
-DEBUG = True 
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['*']
-#['192.168.88.53', 'localhost']
+CSRF_TRUSTED_ORIGINS = ['https://*.railway.app']
 
 # ==============================================================================
 # APLICACIONES (APPS)
@@ -35,6 +35,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware', 
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -145,7 +146,8 @@ STATICFILES_DIRS = [
 ]
 
 # STATIC_ROOT: (Solo para Producción)
-# STATIC_ROOT = BASE_DIR / 'staticfiles' 
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage" 
 
 # Configuración de archivos media (Si usaras subida de archivos/fotos)
 # MEDIA_URL = '/media/'
