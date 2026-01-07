@@ -1,0 +1,20 @@
+*.pyc
+*__pycache__*
+db.sqlite3
+.env
+staticfiles/
+media/
+venv/
+env/
+ngrok.exe
+*.txt
+*.bat
+scripts/
+fix_*.py
+debug_*.py
+test_*.py
+replace_*.py
+update_*.py
+check_dates.py
+cambiar_a_domingo.py
+# Los scripts de fix suelen ser basura temporal.

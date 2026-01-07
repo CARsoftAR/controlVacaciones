@@ -10,12 +10,14 @@ urlpatterns = [
 
     # --- Rutas de Uso General ---
     path('', views.dashboard, name='dashboard'),
+    path('cambiar-password/', views.cambiar_password, name='cambiar_password'),
     path('solicitud/', views.solicitar_vacaciones, name='solicitar_vacaciones'),
     path('calendario_global/', views.calendario_global, name='calendario_global'),
     path('calendario_global/exportar/', views.exportar_calendario_excel, name='exportar_calendario_excel'),
     
     # --- Rutas de Empleado (Personal) ---
     path('dias_disponibles/', views.dias_disponibles_view, name='dias_disponibles'), 
+    path('mis_vacaciones/solicitar/', views.solicitar_mis_vacaciones, name='solicitar_mis_vacaciones'),
     # Usando 'historial_personal' como nombre para la vista
     path('mi_historial/', views.mi_historial, name='historial_personal'), 
     
@@ -36,6 +38,10 @@ urlpatterns = [
     path('festivos/', views.gestion_festivos, name='gestion_festivos'),
     path('festivos/<int:festivo_id>/eliminar/', views.eliminar_festivo, name='eliminar_festivo'),
     path('calendario_manager/', views.calendario_manager, name='calendario_manager'),
+    path('configurar_email/', views.configurar_email, name='configurar_email'),
+    path('probar_email/', views.probar_email, name='probar_email'),
+
+
 
     # --- Rutas de Utilidad (AJAX) ---
     path('saldo_ajax/', views.obtener_saldo_empleado, name='obtener_saldo_empleado'),
@@ -50,4 +56,8 @@ urlpatterns = [
     
 
 
+    # --- Notificaciones ---
+    path('notificaciones/', views.lista_notificaciones, name='lista_notificaciones'),
+    path('notificaciones/marcar-leida/<int:notif_id>/', views.marcar_notificacion_leida, name='marcar_notificacion_leida'),
+    path('api/check_notificaciones/', views.api_check_notificaciones, name='api_check_notificaciones'),
 ]

@@ -3,7 +3,9 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LoginView
 from django.http import JsonResponse 
 # CORRECCIÓN 1: Asegurando que la importación de DiaFestivo sea correcta (singular)
-from .models import Empleado, SaldoVacaciones, RegistroVacaciones, DiasFestivos, Departamento 
+from .models import Empleado, SaldoVacaciones, RegistroVacaciones, DiasFestivos, Departamento, ConfiguracionEmail, Notificacion
+from .utils import enviar_email_nueva_solicitud, enviar_email_cambio_estado, probar_configuracion_email, crear_notificacion
+
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
@@ -199,28 +201,8 @@ def generar_calendario_anual(anio):
 
     return calendario_anual
 
-def calendario_global(request, anio=2025): # Asumo que esta es la vista que está dando error
-    """
-    Vista principal para mostrar la planificación de vacaciones.
-    """
-    
-    calendario_anual = generar_calendario_anual(anio)
-    
-    # Datos de empleados de ejemplo para poblar la tabla
-    empleados_planificacion = [
-        {'apellido': 'Perez', 'nombre': 'Juan', 'f_ingreso': '20/05/2018', 'dias_disponibles': 21, 'dias_restantes': 15, 'planificacion': []},
-        {'apellido': 'Gomez', 'nombre': 'Ana', 'f_ingreso': '10/11/2020', 'dias_disponibles': 14, 'dias_restantes': 10, 'planificacion': []},
-    ]
-
-    context = {
-        'anio_ciclo': anio,
-        'calendario_anual': calendario_anual,
-        'empleados_planificacion': empleados_planificacion,
-    }
-    
-    # !!! CORRECCIÓN CRÍTICA: La plantilla correcta es 'gestion/planificacion_calendario.html'
-    # Asegúrate de que tu vista use este nombre de archivo, no 'gestion/error.html'.
-    return render(request, 'gestion/planificacion_calendario.html', context)
+# NOTA: La función calendario_global se encuentra más adelante en este archivo (línea ~1277)
+# con la implementación completa que incluye datos reales de la base de datos.
 
 
 class CustomLoginView(LoginView):
@@ -302,46 +284,71 @@ def dashboard(request):
     
     if empleado.es_manager:
         # ============================================
-        # DASHBOARD DE MANAGER - KPIs del Equipo
+        # DASHBOARD DE MANAGER - KPIs del Equipo (Filtrado por jerarquía)
         # ============================================
+        from django.db.models import Q
         
-        # 1. Total de empleados activos
-        total_empleados = Empleado.objects.count()
+        # Si es Administrador (Superuser), ve todo. Si no, solo su equipo directo + los sin manager asignado (opcional)
+        # Para cumplir estrictamente "referido solo a él", filtraremos por su equipo.
+        if request.user.is_superuser:
+            filtro_equipo = Q() # Sin filtro para admins
+            filtro_solicitudes = Q(estado=RegistroVacaciones.ESTADO_PENDIENTE)
+        else:
+            # Empleados que reportan directamente a él
+            equipo_ids = Empleado.objects.filter(manager_aprobador=empleado).values_list('id', flat=True)
+            filtro_equipo = Q(id__in=equipo_ids)
+            filtro_solicitudes = Q(empleado__in=equipo_ids, estado=RegistroVacaciones.ESTADO_PENDIENTE)
         
-        # 2. Solicitudes pendientes de aprobación
-        solicitudes_pendientes = RegistroVacaciones.objects.filter(
-            estado=RegistroVacaciones.ESTADO_PENDIENTE
-        ).count()
+        # 1. Total de empleados activos en su equipo
+        total_empleados = Empleado.objects.filter(filtro_equipo).count()
         
-        # 3. Total de días de vacaciones disponibles en el equipo
-        saldos_equipo = SaldoVacaciones.objects.filter(ciclo=current_year)
+        # 2. Solicitudes pendientes de su equipo
+        solicitudes_pendientes = RegistroVacaciones.objects.filter(filtro_solicitudes).count()
+        
+        # 3. Total de días de vacaciones disponibles en su equipo
+        saldos_equipo = SaldoVacaciones.objects.filter(filtro_equipo, ciclo=current_year)
         total_dias_equipo = sum(saldo.total_disponible() for saldo in saldos_equipo)
         
-        # 4. Empleados con vacaciones próximas (próximos 30 días)
+        # 4. Empleados de su equipo con vacaciones próximas (próximos 30 días)
         from datetime import timedelta
         hoy = date.today()
         fecha_limite = hoy + timedelta(days=30)
         
-        vacaciones_proximas = RegistroVacaciones.objects.filter(
-            estado=RegistroVacaciones.ESTADO_APROBADA,
-            fecha_inicio__gte=hoy,
-            fecha_inicio__lte=fecha_limite
-        ).select_related('empleado').order_by('fecha_inicio')[:5]
+        query_proximas = Q(estado=RegistroVacaciones.ESTADO_APROBADA, fecha_inicio__gte=hoy, fecha_inicio__lte=fecha_limite)
+        if not request.user.is_superuser:
+            query_proximas &= Q(empleado__in=equipo_ids)
+            
+        vacaciones_proximas = RegistroVacaciones.objects.filter(query_proximas).select_related('empleado').order_by('fecha_inicio')[:5]
         
-        # 5. Últimas solicitudes (para revisión rápida)
-        ultimas_solicitudes = RegistroVacaciones.objects.filter(
-            estado=RegistroVacaciones.ESTADO_PENDIENTE
-        ).select_related('empleado').order_by('-fecha_inicio')[:5]
+        # 5. Últimas solicitudes de su equipo
+        ultimas_solicitudes = RegistroVacaciones.objects.filter(filtro_solicitudes).select_related('empleado').order_by('-fecha_inicio')[:5]
         
-        # 6. Estadísticas de departamentos
+        # 6. Estadísticas de departamentos (solo de su equipo)
         departamentos_stats = []
-        for depto in Departamento.objects.all():
-            empleados_depto = Empleado.objects.filter(departamento=depto).count()
-            if empleados_depto > 0:
+        deptos_query = Departamento.objects.all()
+        for depto in deptos_query:
+            if request.user.is_superuser:
+                count = Empleado.objects.filter(departamento=depto).count()
+            else:
+                count = Empleado.objects.filter(departamento=depto, manager_aprobador=empleado).count()
+                
+            if count > 0:
                 departamentos_stats.append({
                     'nombre': depto.nombre,
-                    'empleados': empleados_depto
+                    'empleados': count
                 })
+        
+        # 7. Estadísticas para gráficos (solo su equipo)
+        if request.user.is_superuser:
+            f_stats = Q(fecha_inicio__year=current_year)
+        else:
+            f_stats = Q(fecha_inicio__year=current_year, empleado__in=equipo_ids)
+
+        estados_solicitudes = {
+            'aprobadas': RegistroVacaciones.objects.filter(f_stats, estado=RegistroVacaciones.ESTADO_APROBADA).count(),
+            'pendientes': RegistroVacaciones.objects.filter(f_stats, estado=RegistroVacaciones.ESTADO_PENDIENTE).count(),
+            'rechazadas': RegistroVacaciones.objects.filter(f_stats, estado=RegistroVacaciones.ESTADO_RECHAZADA).count()
+        }
         
         context.update({
             'es_manager_dashboard': True,
@@ -351,6 +358,7 @@ def dashboard(request):
             'vacaciones_proximas': vacaciones_proximas,
             'ultimas_solicitudes': ultimas_solicitudes,
             'departamentos_stats': departamentos_stats,
+            'estados_solicitudes': estados_solicitudes,
         })
         
         # Datos personales del manager (sección secundaria)
@@ -363,7 +371,6 @@ def dashboard(request):
             context['saldo_disponible_personal'] = saldo_personal.total_disponible()
         except Exception:
             context['saldo_disponible_personal'] = 0
-            
     else:
         # ============================================
         # DASHBOARD DE EMPLEADO - Datos Personales
@@ -593,14 +600,14 @@ def solicitar_vacaciones(request):
             context['empleado_seleccionado_id'] = empleado_id
             return render(request, 'gestion/solicitud.html', context)
 
-        # 3. Validar período de goce
-        if fecha_inicio < start_goce or fecha_fin > end_goce:
-            messages.error(
-                request,
-                f"Fechas fuera del período de goce ({start_goce.strftime('%d/%m/%Y')} al {end_goce.strftime('%d/%m/%Y')})."
-            )
-            context['empleado_seleccionado_id'] = empleado_id
-            return render(request, 'gestion/solicitud.html', context)
+        # 3. Validar período de goce - FLEXIBILIZADO: Permitir cargar vacaciones todo el año
+        # if fecha_inicio < start_goce or fecha_fin > end_goce:
+        #     messages.error(
+        #         request,
+        #         f"Fechas fuera del período de goce ({start_goce.strftime('%d/%m/%Y')} al {end_goce.strftime('%d/%m/%Y')})."
+        #     )
+        #     context['empleado_seleccionado_id'] = empleado_id
+        #     return render(request, 'gestion/solicitud.html', context)
 
         # 4. Obtener saldo actualizado
         saldo, created = SaldoVacaciones.objects.get_or_create(
@@ -624,7 +631,7 @@ def solicitar_vacaciones(request):
         # 5. Guardar solicitud
         try:
             with transaction.atomic():
-                RegistroVacaciones.objects.create(
+                solicitud = RegistroVacaciones.objects.create(
                     empleado=empleado_afectado,
                     fecha_inicio=fecha_inicio,
                     fecha_fin=fecha_fin,
@@ -632,6 +639,21 @@ def solicitar_vacaciones(request):
                     manager_aprobador=None,
                     razon=data.get('razon')
                 )
+                
+                # Enviar notificación por email
+                enviar_email_nueva_solicitud(request, solicitud)
+
+                # Notificación interna para el Administrador Global (Superusuario) y para el manager
+                # (En este caso el manager ya lo sabe porque él mismo la creó, pero la dejamos para trazabilidad)
+                admin_users = User.objects.filter(is_superuser=True)
+                for a_user in admin_users:
+                    crear_notificacion(
+                        usuario=a_user,
+                        titulo="Nueva Solicitud Creada (Manager) 🔔",
+                        mensaje=f"Se ha registrado una solicitud para {empleado_afectado.nombre} {empleado_afectado.apellido}.",
+                        url="gestion:aprobacion_manager",
+                        solicitud=solicitud
+                    )
 
             messages.success(
                 request,
@@ -932,7 +954,8 @@ def mi_historial(request):
     context = {
         'empleado': empleado,
         'solicitudes': solicitudes,
-        'saldo_disponible': saldo_disponible,
+        'saldo': saldo,
+        'dias_consumidos': saldo.dias_consumidos_total(),
         'anio_ciclo': current_year
     }
     return render(request, 'gestion/mi_historial.html', context)
@@ -962,8 +985,16 @@ def historial_global(request):
     empleado_id = request.GET.get('empleado')
     estado = request.GET.get('estado')
 
-    # Asumiendo que RegistroVacaciones está disponible
-    solicitudes_qs = RegistroVacaciones.objects.all()
+    # Si es Administrador (Superuser), ve todo. Si no, solo su equipo directo.
+    if request.user.is_superuser:
+        solicitudes_qs = RegistroVacaciones.objects.all()
+        empleados_disponibles = Empleado.objects.order_by('apellido', 'nombre')
+        resumen_base_qs = RegistroVacaciones.objects.all()
+    else:
+        equipo = Empleado.objects.filter(manager_aprobador=request.user.empleado)
+        solicitudes_qs = RegistroVacaciones.objects.filter(empleado__in=equipo)
+        empleados_disponibles = equipo.order_by('apellido', 'nombre')
+        resumen_base_qs = RegistroVacaciones.objects.filter(empleado__in=equipo)
 
     # Aplicar filtros opcionales
     if empleado_id and empleado_id != 'Todos':
@@ -975,10 +1006,9 @@ def historial_global(request):
     solicitudes_qs = solicitudes_qs.order_by('-fecha_solicitud')
     
     # --- 2. Datos para Filtros y Resumen ---
-    empleados_disponibles = Empleado.objects.order_by('apellido', 'nombre')
     
     # Cálculo del resumen (Días Aprobados)
-    resumen_aprobado_data = RegistroVacaciones.objects.filter(
+    resumen_aprobado_data = resumen_base_qs.filter(
         estado=RegistroVacaciones.ESTADO_APROBADA, # Uso de la constante
         # Filtrar por solicitudes cuya fecha de inicio sea en el año actual
         fecha_inicio__year=datetime.now().year 
@@ -1010,7 +1040,11 @@ def historial_global(request):
 @user_passes_test(is_manager)
 def gestion_empleados(request):
     try:
-        empleados = Empleado.objects.all().select_related('departamento', 'manager_aprobador__user').order_by('apellido', 'nombre') 
+        # Si es Administrador (Superuser), ve todos. Si no, solo su equipo.
+        if request.user.is_superuser:
+            empleados = Empleado.objects.all().select_related('departamento', 'manager_aprobador__user').order_by('apellido', 'nombre') 
+        else:
+            empleados = Empleado.objects.filter(manager_aprobador=request.user.empleado).select_related('departamento', 'manager_aprobador__user').order_by('apellido', 'nombre') 
     except Exception as e:
         messages.error(request, f"Error al cargar empleados: {e}")
         empleados = [] 
@@ -1151,6 +1185,70 @@ def gestion_festivos(request):
     }
     return render(request, 'gestion/festivos.html', contexto)
 
+@login_required
+@user_passes_test(is_manager)
+def configurar_email(request):
+    """
+    Vista para configurar el servidor SMTP y los destinatarios de las notificaciones.
+    Solo accesible por managers.
+    """
+    # Intentamos obtener la configuración con ID=1 (Singleton pattern)
+    config, created = ConfiguracionEmail.objects.get_or_create(id=1)
+    
+    if request.method == 'POST':
+        try:
+            config.email_host = request.POST.get('email_host', 'smtp.gmail.com')
+            config.email_port = int(request.POST.get('email_port', 587))
+            config.email_use_tls = request.POST.get('email_use_tls') == 'on'
+            config.email_use_ssl = request.POST.get('email_use_ssl') == 'on'
+            config.email_host_user = request.POST.get('email_host_user', '')
+            config.email_host_password = request.POST.get('email_host_password', '')
+            config.emails_notificacion = request.POST.get('emails_notificacion', '')
+            config.activo = request.POST.get('activo') == 'on'
+            config.save()
+            
+            # Si se presionó el botón de Probar
+            if 'test' in request.POST:
+                exito, mensaje = probar_configuracion_email(request, config)
+                if exito:
+                    messages.success(request, f"✅ Configuración Guardada: {mensaje}")
+                else:
+                    messages.error(request, f"❌ Error en la Prueba: {mensaje}")
+            else:
+                messages.success(request, "¡Configuración de email guardada con éxito!")
+
+        except Exception as e:
+            messages.error(request, f"Error al guardar la configuración: {e}")
+            
+        return redirect('gestion:configurar_email')
+
+    contexto = {
+        'config': config,
+        'titulo_pagina': 'Configuración de Correos'
+    }
+    return render(request, 'gestion/configuracion_email.html', contexto)
+
+@login_required
+@user_passes_test(is_manager)
+def probar_email(request):
+    """
+    Vista rápida para disparar un email de prueba.
+    """
+    config = ConfiguracionEmail.objects.filter(id=1).first()
+    if not config:
+        messages.error(request, "No hay configuración cargada.")
+        return redirect('gestion:configurar_email')
+        
+    exito, mensaje = probar_configuracion_email(request, config)
+    if exito:
+        messages.success(request, mensaje)
+    else:
+        messages.error(request, f"Error de Prueba: {mensaje}")
+        
+    return redirect('gestion:configurar_email')
+
+
+
 
 
 @login_required
@@ -1243,25 +1341,42 @@ def total_disponible(self):
 @user_passes_test(is_manager)
 def aprobacion_manager(request):
     """Vista para que el Manager gestione las solicitudes pendientes de su equipo."""
-    
-    # Lógica real: Obtener solicitudes pendientes para este manager
-    # solicitudes_pendientes = ... 
+    try:
+        empleado_manager = request.user.empleado
+    except Empleado.DoesNotExist:
+        # Si es un admin sin perfil de empleado, le mostramos todas las pendientes
+        solicitudes_pendientes = RegistroVacaciones.objects.filter(estado=RegistroVacaciones.ESTADO_PENDIENTE)
+        return render(request, 'gestion/aprobacion_manager.html', {'solicitudes_pendientes': solicitudes_pendientes})
+
+    # Buscamos solicitudes donde el manager_aprobador sea el usuario actual
+    # O solicitudes que NO tengan manager asignado (SOLO PARA ADMINS)
+    from django.db.models import Q
+    if request.user.is_superuser:
+        filtro_gestor = Q() # Admins ven todo
+    else:
+        filtro_gestor = Q(manager_aprobador=empleado_manager)
+        
+    solicitudes_pendientes = RegistroVacaciones.objects.filter(
+        filtro_gestor,
+        estado=RegistroVacaciones.ESTADO_PENDIENTE
+    ).order_by('fecha_solicitud')
     
     context = {
-        'solicitudes_pendientes': [] # Placeholder
+        'solicitudes_pendientes': solicitudes_pendientes
     }
     return render(request, 'gestion/aprobacion_manager.html', context)
 
 
+
 @login_required
-@login_required
+@user_passes_test(is_manager)
 def calendario_global(request):
     """
     Vista que genera la tabla de planificación anual de vacaciones.
     Soporta vista de un año específico o todos (2024, 2025, 2026) en una sola tabla horizontal.
     """
     try:
-        anio_param = request.GET.get('anio', '2025')  # Default to 2025 if no year specified
+        anio_param = request.GET.get('anio', str(date.today().year))
         
         anios_a_mostrar = []
         if anio_param == 'todos':
@@ -1296,8 +1411,15 @@ def calendario_global(request):
         anio_saldo = date.today().year if date.today().year in anios_a_mostrar else anios_a_mostrar[0]
 
         for depto in departamentos:
+            # Filtrar empleados por departamento Y por manager si no es superuser
+            from django.db.models import Q
+            if request.user.is_superuser:
+                filtro_empleados = Q(departamento=depto)
+            else:
+                filtro_empleados = Q(departamento=depto, manager_aprobador=request.user.empleado)
+
             empleados_depto = Empleado.objects.filter(
-                departamento=depto
+                filtro_empleados
             ).select_related('manager_aprobador').order_by('apellido', 'nombre')
             
             empleados_list = []
@@ -1313,11 +1435,19 @@ def calendario_global(request):
                 # Días base del ciclo actual (sin acumulados) - columna "Disponible"
                 dias_disponibles = saldo.dias_base_ciclo()
                 
-                # Días acumulados restantes (después de consumir) - columna "Acumuladas"
-                dias_acumulados = saldo.dias_acumulados_restantes()
-                
+                # CORRECCIÓN: Calcular consumo visualmente para incluir vacaciones puente
+                consumo_visual = RegistroVacaciones.objects.filter(
+                    empleado=emp,
+                    estado=RegistroVacaciones.ESTADO_APROBADA,
+                    fecha_fin__year__gte=anio_saldo 
+                ).aggregate(Sum('dias_solicitados'))['dias_solicitados__sum'] or 0
+
+                # Días acumulados restantes: lo que había menos lo consumido, piso 0
+                dias_adicionales_iniciales = saldo.dias_adicionales or 0
+                dias_acumulados = max(0, dias_adicionales_iniciales - consumo_visual)
+
                 # Días restantes totales - columna "Restan"
-                dias_restantes = saldo.total_disponible()
+                dias_restantes = saldo.dias_totales() - consumo_visual
                 
                 # Vacaciones en el rango TOTAL (aprobadas y pendientes)
                 vacaciones = RegistroVacaciones.objects.filter(
@@ -1331,7 +1461,7 @@ def calendario_global(request):
                 vacaciones_futuras = list(RegistroVacaciones.objects.filter(
                     empleado=emp,
                     estado=RegistroVacaciones.ESTADO_APROBADA,
-                    fecha_inicio__gte=date.today()
+                    fecha_fin__gte=date.today()
                 ).order_by('fecha_inicio'))
                 
                 empleados_list.append({
@@ -1366,11 +1496,19 @@ def calendario_global(request):
                 # Días base del ciclo actual (sin acumulados) - columna "Disponible"
                 dias_disponibles = saldo.dias_base_ciclo()
                 
-                # Días acumulados restantes (después de consumir) - columna "Acumuladas"
-                dias_acumulados = saldo.dias_acumulados_restantes()
-                
+                # CORRECCIÓN: Calcular consumo visualmente para incluir vacaciones puente
+                consumo_visual = RegistroVacaciones.objects.filter(
+                    empleado=emp,
+                    estado=RegistroVacaciones.ESTADO_APROBADA,
+                    fecha_fin__year__gte=anio_saldo 
+                ).aggregate(Sum('dias_solicitados'))['dias_solicitados__sum'] or 0
+
+                # Días acumulados restantes: lo que había menos lo consumido, piso 0
+                dias_adicionales_iniciales = saldo.dias_adicionales or 0
+                dias_acumulados = max(0, dias_adicionales_iniciales - consumo_visual)
+
                 # Días restantes totales - columna "Restan"
-                dias_restantes = saldo.total_disponible()
+                dias_restantes = saldo.dias_totales() - consumo_visual
                 
                 vacaciones = RegistroVacaciones.objects.filter(
                     empleado=emp,
@@ -1383,7 +1521,7 @@ def calendario_global(request):
                 vacaciones_futuras = list(RegistroVacaciones.objects.filter(
                     empleado=emp,
                     estado=RegistroVacaciones.ESTADO_APROBADA,
-                    fecha_inicio__gte=date.today()
+                    fecha_fin__gte=date.today()
                 ).order_by('fecha_inicio'))
                 
                 empleados_list.append({
@@ -1408,8 +1546,6 @@ def calendario_global(request):
 
         return render(request, 'gestion/calendario_global.html', context)
         
-        return render(request, 'gestion/calendario_global.html', context)
-        
     except Exception as e:
         import traceback
         return HttpResponse(f"<h1>Error: {e}</h1><pre>{traceback.format_exc()}</pre>")
@@ -1421,7 +1557,7 @@ def exportar_calendario_excel(request):
     Exporta el calendario de vacaciones a un archivo Excel.
     """
     try:
-        anio_param = request.GET.get('anio', '2025')
+        anio_param = request.GET.get('anio', str(date.today().year))
         
         anios_a_mostrar = []
         if anio_param == 'todos':
@@ -1810,6 +1946,21 @@ def aprobar_rechazar_solicitud(request, solicitud_id):
                 solicitud.manager_aprobador = manager_empleado
                 solicitud.fecha_aprobacion = date.today()
                 solicitud.save()
+                
+                # Enviar notificación por email al empleado
+                enviar_email_cambio_estado(request, solicitud)
+
+                # Notificación interna
+                crear_notificacion(
+                    usuario=solicitud.empleado.user,
+                    titulo="Vacaciones Aprobadas ✅",
+                    mensaje=f"Tu solicitud para el ciclo {datetime.now().year} ha sido APROBADA.",
+                    url="gestion:historial_personal",
+                    solicitud=solicitud
+                )
+                
+                # Auto-limpiar notificaciones PENDIENTES de esta solicitud para el manager
+                Notificacion.objects.filter(solicitud=solicitud, usuario=request.user).update(leida=True)
 
                 messages.success(
                     request,
@@ -1823,6 +1974,21 @@ def aprobar_rechazar_solicitud(request, solicitud_id):
                 solicitud.fecha_aprobacion = date.today()
                 solicitud.save()
 
+                # Enviar notificación por email al empleado
+                enviar_email_cambio_estado(request, solicitud)
+
+                # Notificación interna
+                crear_notificacion(
+                    usuario=solicitud.empleado.user,
+                    titulo="Solicitud Rechazada ❌",
+                    mensaje=f"Tu solicitud para el ciclo {datetime.now().year} ha sido RECHAZADA.",
+                    url="gestion:historial_personal",
+                    solicitud=solicitud
+                )
+
+                # Auto-limpiar notificaciones PENDIENTES de esta solicitud para el manager
+                Notificacion.objects.filter(solicitud=solicitud, usuario=request.user).update(leida=True)
+
                 messages.warning(request, f"Vacaciones de {empleado.nombre} RECHAZADAS. El saldo no fue afectado.")
 
             elif accion == 'cancelar':
@@ -1835,6 +2001,21 @@ def aprobar_rechazar_solicitud(request, solicitud_id):
                 solicitud.manager_aprobador = manager_empleado 
                 solicitud.save()
                 
+                # Enviar notificación por email al empleado
+                enviar_email_cambio_estado(request, solicitud)
+
+                # Notificación interna
+                crear_notificacion(
+                    usuario=solicitud.empleado.user,
+                    titulo="Solicitud Cancelada ⚠️",
+                    mensaje=f"Tu solicitud para el ciclo {datetime.now().year} ha sido CANCELADA y los días devueltos.",
+                    url="gestion:historial_personal",
+                    solicitud=solicitud
+                )
+
+                # Auto-limpiar notificaciones PENDIENTES
+                Notificacion.objects.filter(solicitud=solicitud).update(leida=True)
+
                 msg_extra = ""
                 if estado_anterior == RegistroVacaciones.ESTADO_APROBADA:
                     msg_extra = " Los días descontados han sido devueltos al saldo."
@@ -1855,40 +2036,64 @@ def aprobar_rechazar_solicitud(request, solicitud_id):
 
 
 @login_required
-@user_passes_test(is_manager) 
 def solicitar_vacaciones(request):
     """
-    Vista para que el Manager/RRHH registre días de ausencia para otro empleado.
-    Se registran como 'Pendiente' y no consumen saldo hasta que se aprueban.
-    Ahora incluye: dias_totales, dias_usados y dias_pendientes para las cards KPI.
+    Vista HÍBRIDA (Auto-Servicio + Manager):
+    - Si es Manager: Puede seleccionar cualquier empleado para cargarle vacaciones.
+    - Si es Empleado: Solo puede cargarse a sí mismo (Auto-Servicio).
     """
+    try:
+        # Obtener el perfil del usuario actual
+        mi_empleado = Empleado.objects.get(user=request.user)
+        es_manager = mi_empleado.es_manager
+    except Empleado.DoesNotExist:
+        messages.error(request, "Tu usuario no tiene un perfil de empleado asociado.")
+        return redirect('dashboard')
 
     current_year = timezone.now().year
-
-    # Período de goce en Argentina
+    
+    # --- Lógica de Selección de Empleado ---
+    # Si es manager, tomamos el ID del POST/GET o None.
+    # Si es empleado, forzamos su propio ID.
+    empleado_seleccionado_id = None
+    
+    if es_manager:
+        empleado_seleccionado_id = request.POST.get('empleado_id', request.GET.get('empleado_id'))
+        context_empleados = Empleado.objects.all().order_by('apellido', 'nombre')
+    else:
+        empleado_seleccionado_id = mi_empleado.id
+        context_empleados = [mi_empleado] # Solo él mismo en la lista
+    
+    # -----------------------------------------------------------
+    #   CONTEXTO BASE
+    # -----------------------------------------------------------
+    current_year = timezone.now().year
     start_goce = date(current_year, 10, 1)
     end_goce = date(current_year + 1, 4, 30)
-
-    # Contexto base
+    
     context = {
-        'es_manager': True,
+        'es_manager': es_manager, # Para mostrar/ocultar selector en HTML
+        'mi_empleado': mi_empleado,
         'hoy': date.today().isoformat(),
-        'todos_empleados': Empleado.objects.all().order_by('apellido', 'nombre'),
-        'empleado_seleccionado_id': request.POST.get('empleado_id', request.GET.get('empleado_id')),
+        'todos_empleados': context_empleados,
+        'empleado_seleccionado_id': str(empleado_seleccionado_id) if empleado_seleccionado_id else "",
         'periodo_goce_inicio': start_goce.strftime("%d/%m/%Y"),
         'periodo_goce_fin': end_goce.strftime("%d/%m/%Y"),
         'estado_a_registrar': 'Pendiente',
         'saldo_disponible': 'N/A'
     }
 
-    empleado_id_inicial = context['empleado_seleccionado_id']
-
-    # ============================================================
-    #   CARGAR SALDO Y CALCULAR LAS 3 KPI (totales / usados / pendientes)
-    # ============================================================
-    if empleado_id_inicial:
+    # -----------------------------------------------------------
+    #   CARGAR SALDO Y KPI (SI HAY EMPLEADO SELECCIONADO)
+    # -----------------------------------------------------------
+    if empleado_seleccionado_id:
         try:
-            empleado_afectado = Empleado.objects.get(pk=empleado_id_inicial)
+            empleado_afectado = Empleado.objects.get(pk=empleado_seleccionado_id)
+            
+            # Seguridad: Si NO es manager, verificar que no esté intentando ver datos de otro
+            if not es_manager and empleado_afectado != mi_empleado:
+                messages.error(request, "Acción no autorizada. Solo puedes ver tus propios datos.")
+                return redirect('gestion:solicitar_vacaciones')
 
             saldo, created = SaldoVacaciones.objects.get_or_create(
                 empleado=empleado_afectado,
@@ -1897,63 +2102,56 @@ def solicitar_vacaciones(request):
             )
 
             context['saldo_disponible'] = f"{saldo.total_disponible()} días"
-
-            # -------------------------
-            # KPI 1 – DÍAS TOTALES
-            # -------------------------
+            
+            # --- KPIs para las Cards ---
             dias_totales = (saldo.dias_iniciales or 0) + (saldo.dias_adicionales or 0)
-
-            # -------------------------
-            # KPI 2 – DÍAS USADOS (Aprobados)
-            # -------------------------
+            
             dias_usados = RegistroVacaciones.objects.filter(
                 empleado=empleado_afectado,
                 estado=RegistroVacaciones.ESTADO_APROBADA,
                 fecha_inicio__year=current_year
             ).aggregate(total=Sum('dias_solicitados'))['total'] or 0
-
-            # -------------------------
-            # KPI 3 – DÍAS PENDIENTES
-            # -------------------------
+            
             dias_pendientes = RegistroVacaciones.objects.filter(
                 empleado=empleado_afectado,
                 estado=RegistroVacaciones.ESTADO_PENDIENTE,
                 fecha_inicio__year=current_year
             ).aggregate(total=Sum('dias_solicitados'))['total'] or 0
 
-            # Agregar al contexto
             context.update({
                 'dias_totales': dias_totales,
                 'dias_usados': dias_usados,
                 'dias_pendientes': dias_pendientes,
+                'dias_acumulados': saldo.dias_acumulados_restantes()
             })
 
             if created:
-                messages.warning(
-                    request,
-                    f"Advertencia: Se inicializó automáticamente el saldo de {empleado_afectado.nombre}."
-                )
+                if es_manager:
+                    messages.warning(request, f"Se inicializó el saldo de {empleado_afectado.nombre} automáticamente.")
 
         except Empleado.DoesNotExist:
-            messages.error(request, f"Empleado con ID {empleado_id_inicial} no encontrado.")
-        except Exception as e:
-            messages.error(request, f"Error al calcular KPIs: {e}")
+            pass
 
-    # ============================================================
+    # -----------------------------------------------------------
     #   PROCESAR FORMULARIO POST
-    # ============================================================
+    # -----------------------------------------------------------
     if request.method == 'POST':
         data = request.POST
-
-        # 1. Empleado
-        empleado_id = data.get('empleado_id')
-        if not empleado_id:
-            messages.error(request, "Debe seleccionar un empleado.")
-            return render(request, 'gestion/solicitud.html', context)
-
-        empleado_afectado = get_object_or_404(Empleado, pk=empleado_id)
-
-        # 2. Fechas
+        
+        # 1. Determinar Empleado Afectado (Robustez)
+        target_id = data.get('empleado_id')
+        
+        if es_manager:
+            if not target_id:
+                messages.error(request, "Debe seleccionar un empleado.")
+                return render(request, 'gestion/solicitud.html', context)
+            empleado_afectado = get_object_or_404(Empleado, pk=target_id)
+        else:
+            # Si es empleado, ignoramos lo que venga en el POST y usamos al usuario actual
+            empleado_afectado = mi_empleado
+            target_id = mi_empleado.id
+        
+        # 2. Validar Fechas
         fecha_inicio_str = data.get('fecha_inicio')
         fecha_fin_str = data.get('fecha_fin')
 
@@ -1962,24 +2160,13 @@ def solicitar_vacaciones(request):
             fecha_fin = date.fromisoformat(fecha_fin_str)
         except ValueError:
             messages.error(request, "Formato de fecha inválido.")
-            context['empleado_seleccionado_id'] = empleado_id
             return render(request, 'gestion/solicitud.html', context)
 
         if fecha_inicio > fecha_fin:
             messages.error(request, "La fecha de inicio no puede ser mayor que la fecha fin.")
-            context['empleado_seleccionado_id'] = empleado_id
             return render(request, 'gestion/solicitud.html', context)
 
-        # 3. Validar período de goce
-        if fecha_inicio < start_goce or fecha_fin > end_goce:
-            messages.error(
-                request,
-                f"Fechas fuera del período de goce ({start_goce.strftime('%d/%m/%Y')} al {end_goce.strftime('%d/%m/%Y')})."
-            )
-            context['empleado_seleccionado_id'] = empleado_id
-            return render(request, 'gestion/solicitud.html', context)
-
-        # 4. Obtener saldo actualizado
+        # 3. Validar Saldo
         saldo, created = SaldoVacaciones.objects.get_or_create(
             empleado=empleado_afectado,
             ciclo=current_year,
@@ -1987,38 +2174,43 @@ def solicitar_vacaciones(request):
         )
 
         saldo_disponible = saldo.total_disponible()
-
         dias_solicitados = (fecha_fin - fecha_inicio).days + 1
 
         if dias_solicitados > saldo_disponible:
             messages.error(
                 request,
-                f"Saldo insuficiente. Solicita {dias_solicitados} días y solo tiene {saldo_disponible} disponibles."
+                f"Saldo insuficiente. Solicitas {dias_solicitados} días y tienes {saldo_disponible} disponibles."
             )
-            context['empleado_seleccionado_id'] = empleado_id
             return render(request, 'gestion/solicitud.html', context)
 
-        # 5. Guardar solicitud
+        # 4. Guardar Solicitud
         try:
             with transaction.atomic():
-                RegistroVacaciones.objects.create(
+                solicitud = RegistroVacaciones.objects.create(
                     empleado=empleado_afectado,
                     fecha_inicio=fecha_inicio,
                     fecha_fin=fecha_fin,
                     estado=RegistroVacaciones.ESTADO_PENDIENTE,
-                    manager_aprobador=None,
+                    manager_aprobador=None, # Siempre null al inicio (pendiente)
                     razon=data.get('razon')
                 )
-
+            
+            # --- NOTIFICACIÓN REAL ---
+            enviar_email_nueva_solicitud(request, solicitud)
+            
             messages.success(
                 request,
-                f"Solicitud registrada: {dias_solicitados} días naturales. Queda en estado PENDIENTE."
+                f"Solicitud enviada correctamente ({dias_solicitados} días). Esperando aprobación."
             )
-            return redirect('gestion:historial_global')
+            
+            # Redirección inteligente
+            if es_manager:
+                return redirect('gestion:historial_global')
+            else:
+                return redirect('gestion:historial_personal') # O dashboard
 
         except Exception as e:
             messages.error(request, f"Error al guardar solicitud: {e}")
-            context['empleado_seleccionado_id'] = empleado_id
             return render(request, 'gestion/solicitud.html', context)
 
     # ============================================================
@@ -2232,3 +2424,261 @@ def exportar_notificacion_vacaciones_pdf(request, empleado_id, vacacion_id):
     pdf.save()
 
     return response
+
+
+@login_required
+def solicitar_mis_vacaciones(request):
+    """
+    Vista simplificada para que el EMPLEADO solicite sus propias vacaciones.
+    Sin selección de usuario (es él mismo).
+    """
+    try:
+        if not hasattr(request.user, 'empleado'):
+             messages.error(request, "No tienes un perfil de empleado asociado.")
+             return redirect('gestion:dashboard')
+        empleado = request.user.empleado
+    except Empleado.DoesNotExist:
+        messages.error(request, "No tienes un perfil de empleado asociado.")
+        return redirect('gestion:dashboard')
+
+    current_year = timezone.now().year
+    
+    # Obtener saldo
+    saldo, created = SaldoVacaciones.objects.get_or_create(
+        empleado=empleado,
+        ciclo=current_year,
+        defaults={'dias_iniciales': empleado.dias_base_lct(current_year)}
+    )
+    saldo_disponible = saldo.total_disponible()
+
+    if request.method == 'POST':
+        fecha_inicio_str = request.POST.get('fecha_inicio')
+        fecha_fin_str = request.POST.get('fecha_fin')
+
+        try:
+            fecha_inicio = date.fromisoformat(fecha_inicio_str)
+            fecha_fin = date.fromisoformat(fecha_fin_str)
+        except ValueError:
+            messages.error(request, "Formato de fecha inválido.")
+            return redirect('gestion:solicitar_mis_vacaciones')
+
+        if fecha_inicio > fecha_fin:
+            messages.error(request, "La fecha de inicio no puede ser mayor que la fecha fin.")
+            return redirect('gestion:solicitar_mis_vacaciones')
+
+        dias_solicitados = (fecha_fin - fecha_inicio).days + 1
+
+        if dias_solicitados > saldo_disponible:
+            messages.error(
+                request, 
+                f"Saldo insuficiente. Solicitas {dias_solicitados} días y tienes {saldo_disponible}."
+            )
+            return redirect('gestion:solicitar_mis_vacaciones')
+
+        # Crear solicitud PENDIENTE
+        try:
+            with transaction.atomic():
+                solicitud = RegistroVacaciones.objects.create(
+                    empleado=empleado,
+                    fecha_inicio=fecha_inicio,
+                    fecha_fin=fecha_fin,
+                    estado=RegistroVacaciones.ESTADO_PENDIENTE,
+                    manager_aprobador=empleado.manager_aprobador, # Se asigna a su manager
+                    razon="Solicitud personal desde App"
+                )
+            
+            # Enviar notificación por email
+            enviar_email_nueva_solicitud(request, solicitud)
+
+            # Notificación interna para el manager y para todos los Administradores
+            notificados = set()
+            if solicitud.manager_aprobador and solicitud.manager_aprobador.user:
+                crear_notificacion(
+                    usuario=solicitud.manager_aprobador.user,
+                    titulo="Nueva Solicitud de Vacaciones 🔔",
+                    mensaje=f"{empleado.nombre} {empleado.apellido} ha solicitado vacaciones.",
+                    url="gestion:aprobacion_manager",
+                    solicitud=solicitud
+                )
+                notificados.add(solicitud.manager_aprobador.user.id)
+            
+            # Notificar también a todos los Administradores (superusuarios) que no sean el manager ya notificado
+            admin_users = User.objects.filter(is_superuser=True)
+            for a_user in admin_users:
+                if a_user.id not in notificados:
+                    crear_notificacion(
+                        usuario=a_user,
+                        titulo="Seguimiento: Nueva Solicitud 🔔",
+                        mensaje=f"{empleado.nombre} {empleado.apellido} ha solicitado vacaciones.",
+                        url="gestion:aprobacion_manager",
+                        solicitud=solicitud
+                    )
+
+            
+            messages.success(request, "¡Solicitud enviada con éxito! Tu manager deberá aprobarla.")
+
+            return redirect('gestion:dashboard')
+        except Exception as e:
+            messages.error(request, f"Error al crear solicitud: {str(e)}")
+            return redirect('gestion:solicitar_mis_vacaciones')
+
+    context = {
+        'saldo_disponible': saldo_disponible,
+        'current_year': current_year,
+        'hoy': date.today().isoformat()
+    }
+    return render(request, 'gestion/solicitar_personal.html', context)
+
+
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
+
+@login_required
+def cambiar_password(request):
+    """
+    Vista para obligar al usuario a cambiar su contraseña (Primer Login).
+    """
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Mantener la sesión activa después del cambio de password
+            update_session_auth_hash(request, user)  
+            
+            # Actualizar flag en Empleado
+            try:
+                if hasattr(user, 'empleado'):
+                    empleado = user.empleado
+                    empleado.primer_login = False
+                    
+                    # Manejo seguro si el modelo cambió recientemente y la instancia está 'stale'
+                    # Aunque en este contexto request.user.empleado debería estar fresco o ser refrescable
+                    empleado.save(update_fields=['primer_login'])
+            except Exception as e:
+                # Si falla guardar el flag, loguear pero permitir continuar
+                logger.error(f"Error al actualizar primer_login para {user.username}: {e}")
+                pass
+                
+            messages.success(request, '¡Contraseña actualizada con éxito! Bienvenido.')
+            return redirect('gestion:dashboard')
+        else:
+            messages.error(request, 'Por favor corrija los errores indicados.')
+    else:
+        form = PasswordChangeForm(request.user)
+        
+    return render(request, 'gestion/cambiar_password.html', {
+        'form': form
+    })
+
+@login_required
+def lista_notificaciones(request):
+    """Muestra todas las notificaciones del usuario y sus tareas pendientes."""
+    notificaciones = request.user.notificaciones.all().order_by('-fecha_creacion')
+    
+    # Si es manager, traer también solicitudes pendientes para mostrar en el mismo listado
+    solicitudes_pendientes = []
+    if hasattr(request.user, 'empleado') and request.user.empleado.es_manager:
+        from django.db.models import Q
+        # Si es superusuario (administrador), ve todas. Si no, solo las suyas.
+        if request.user.is_superuser:
+            filter_q = Q()
+        else:
+            filter_q = Q(manager_aprobador=request.user.empleado)
+            
+        solicitudes_pendientes = RegistroVacaciones.objects.filter(
+            filter_q,
+            estado=RegistroVacaciones.ESTADO_PENDIENTE
+        ).order_by('fecha_solicitud')
+
+    # Si viene por POST, marcar todas como leídas
+    if request.method == 'POST' and 'marcar_todas' in request.POST:
+        request.user.notificaciones.filter(leida=False).update(leida=True)
+        messages.success(request, "Todas las notificaciones marcadas como leídas.")
+        return redirect('gestion:lista_notificaciones')
+        
+    context = {
+        'notificaciones': notificaciones,
+        'solicitudes_pendientes': solicitudes_pendientes
+    }
+    return render(request, 'gestion/notificaciones.html', context)
+
+
+@login_required
+def marcar_notificacion_leida(request, notif_id):
+    """Marca una notificación como leída y redirige a su URL."""
+    notificacion = get_object_or_404(Notificacion, id=notif_id, usuario=request.user)
+    
+    # LÓGICA INTELIGENTE: Si la notificación tiene una solicitud vinculada y es una tarea pendiente,
+    # NO la marcamos como leída automáticamente solo por hacer clic, a menos que el usuario lo haga manual.
+    # Pero para no marear, vamos a marcarla como leída solo si NO es de tipo "Nueva Solicitud"
+    # o si el usuario explícitamente quiere ir a la URL.
+    
+    # Por ahora: Si es de tipo Solicitud Pendiente, el manager querrá mantenerla hasta resolverla.
+    is_task = notificacion.solicitud and notificacion.solicitud.estado == RegistroVacaciones.ESTADO_PENDIENTE
+    
+    if not is_task:
+        notificacion.leida = True
+        notificacion.save()
+    
+    if notificacion.url:
+
+        try:
+            # Si el URL contiene el nombre de una vista de Django, intentar resolverla
+            from django.urls import reverse
+            return redirect(reverse(notificacion.url))
+        except:
+            # Si es un path directo, redirigir
+            return redirect(notificacion.url)
+    
+    return redirect('gestion:lista_notificaciones')
+
+@login_required
+def api_check_notificaciones(request):
+    """Endpoint para polling de notificaciones en tiempo real."""
+    last_notif_id = request.GET.get('last_id', 0)
+    
+    try:
+        last_notif_id = int(last_notif_id)
+    except ValueError:
+        last_notif_id = 0
+
+    # 1. Notificaciones nuevas (creadas después del last_id)
+    nuevas_notif = request.user.notificaciones.filter(id__gt=last_notif_id).order_by('id')
+    
+    # 2. Conteo total de no leídas
+    unread_count = request.user.notificaciones.filter(leida=False).count()
+    
+    # 3. Tareas pendientes (solo para managers)
+    tareas_pendientes = 0
+    if hasattr(request.user, 'empleado') and request.user.empleado.es_manager:
+        from django.db.models import Q
+        # Si es Administrador (Superuser), ve TODAS las pendientes
+        if request.user.is_superuser:
+            filter_q = Q()
+        else:
+            filter_q = Q(manager_aprobador=request.user.empleado)
+            
+        tareas_pendientes = RegistroVacaciones.objects.filter(
+            filter_q,
+            estado=RegistroVacaciones.ESTADO_PENDIENTE
+        ).count()
+
+    notif_data = []
+    max_id = last_notif_id
+    for n in nuevas_notif:
+        notif_data.append({
+            'id': n.id,
+            'titulo': n.titulo,
+            'mensaje': n.mensaje,
+            'url': n.url
+        })
+        max_id = max(max_id, n.id)
+
+    return JsonResponse({
+        'unread_count': unread_count + tareas_pendientes,
+        'tareas_pendientes': tareas_pendientes,
+        'nuevas': notif_data,
+        'last_id': max_id
+    })
+
+

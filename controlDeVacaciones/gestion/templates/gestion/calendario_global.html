@@ -1,487 +1,383 @@
 {% extends 'gestion/base.html' %}
 {% load calendario_filters %}
 
-{% block extra_css %}
-<!-- Bootstrap 5 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-    /* Ajustes para convivencia con Tailwind */
-    .btn-group .btn { z-index: 0; }
-    a { text-decoration: none !important; }
-
-    /* FIX CRÍTICO: Bootstrap .invisible pisa a Tailwind .invisible */
-    /* Forzamos visibilidad al hacer hover en el grupo del menú */
-    .group:hover .invisible {
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-
-    /* FIX Z-INDEX: Asegurar que el menú pase por encima de los headers sticky */
-    nav {
-        z-index: 1000 !important; /* Mayor que el 50 de la tabla */
-    }
-</style>
-{% endblock %}
+{% block title %}Planificación Anual de Vacaciones{% endblock %}
 
 {% block content %}
-<div class="romper-contenedor">
-
-    <div class="contenido-interno">
+<div class="min-h-screen bg-[#f8fafc] py-8">
+    <div class="max-w-[98%] mx-auto">
         
-        <!-- HEADER MODERNO CON BOOTSTRAP -->
-        <div class="card shadow-sm border-0 mb-4 bg-white rounded-3">
-            <div class="card-body p-4 d-flex flex-wrap flex-md-nowrap justify-content-between align-items-center gap-3">
-                
-                <!-- Título -->
+        <!-- Header Premium -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 mb-8 transition-all hover:shadow-md">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                 <div>
-                    <h2 class="h4 fw-bold text-dark mb-1">
-                        <i class="fas fa-calendar-alt text-primary me-2"></i>Planificación de Vacaciones
-                    </h2>
-                    <p class="text-secondary mb-0 small">Vista anual de vacaciones aprobadas y pendientes por departamento</p>
+                    <div class="flex items-center gap-4 mb-2">
+                        <div class="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-200">
+                            <i class="fas fa-calendar-check text-white text-2xl"></i>
+                        </div>
+                        <h1 class="text-3xl font-bold text-slate-800 tracking-tight">
+                            Planificación Anual
+                        </h1>
+                    </div>
+                    <p class="text-slate-500 font-medium ml-2">Control visual de ausencias y reportes de RRHH</p>
                 </div>
 
-                <!-- Controles -->
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    
-                    <!-- Filtro Año -->
-                    <div class="btn-group shadow-sm" role="group">
-                        <a href="?anio=2024" class="btn btn-sm {% if anio_seleccionado == '2024' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                            2024
-                        </a>
-                        <a href="?anio=2025" class="btn btn-sm {% if anio_seleccionado == '2025' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                            2025
-                        </a>
-                        <a href="?anio=2026" class="btn btn-sm {% if anio_seleccionado == '2026' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                            2026
-                        </a>
-                        <a href="?anio=todos" class="btn btn-sm {% if anio_seleccionado == 'todos' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                            Todo
-                        </a>
+                <div class="flex flex-wrap items-center gap-6">
+                    <!-- Filtro de Año Corregido -->
+                    <div class="bg-slate-100 p-1.5 rounded-2xl flex items-center gap-1 border border-slate-200">
+                        <a href="?anio=2024" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all {% if anio_seleccionado == '2024' %}bg-white text-blue-600 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">2024</a>
+                        <a href="?anio=2025" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all {% if anio_seleccionado == '2025' %}bg-white text-blue-600 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">2025</a>
+                        <a href="?anio=2026" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all {% if anio_seleccionado == '2026' %}bg-white text-blue-600 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">2026</a>
+                        <a href="?anio=todos" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all {% if anio_seleccionado == 'todos' %}bg-white text-slate-800 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Histórico</a>
                     </div>
 
-                    <!-- Exportar -->
-                    <a href="{% url 'gestion:exportar_calendario_excel' %}?anio={{ anio_seleccionado }}" class="btn btn-sm btn-success d-flex align-items-center gap-2 shadow-sm">
-                        <i class="fas fa-file-excel"></i> 
-                        <span class="d-none d-sm-inline">Exportar Excel</span>
+                    <!-- Botón Exportar -->
+                    <a href="{% url 'gestion:exportar_calendario_excel' %}?anio={{ anio_seleccionado }}"
+                       class="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-2xl shadow-lg shadow-emerald-100 transition-all transform hover:-translate-y-1 active:scale-95">
+                        <i class="fas fa-file-excel text-lg"></i>
+                        <span>Exportar Planilla</span>
                     </a>
+                </div>
+            </div>
 
-                    <!-- Separador vertical -->
-                    <div class="border-end mx-2 h-100 py-3"></div>
-
-                    <!-- Leyenda (Badges) -->
-                    <div class="d-flex flex-column flex-sm-row gap-2">
-                        <span class="badge rounded-pill bg-light text-dark border d-flex align-items-center gap-2 px-3 py-2">
-                            <span class="d-inline-block rounded-circle" style="width: 10px; height: 10px; background-color: #5eead4; border: 1px solid #2dd4bf;"></span>
-                            Aprobadas
-                        </span>
-                        <span class="badge rounded-pill bg-light text-dark border d-flex align-items-center gap-2 px-3 py-2">
-                            <span class="d-inline-block rounded-circle" style="width: 10px; height: 10px; background-color: #fde68a; border: 1px solid #fbbf24;"></span>
-                            Pendientes
-                        </span>
+            <!-- Referencias -->
+            <div class="mt-8 flex flex-wrap items-center gap-8 pt-6 border-t border-slate-100">
+                <span class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Referencias:</span>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-3.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 shadow-sm group relative">
+                        <span class="absolute -bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block text-[10px] bg-slate-800 text-white px-2 py-0.5 rounded">Aprobada</span>
                     </div>
-
+                    <span class="text-xs text-slate-600 font-bold uppercase tracking-wider">Aprobadas</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-3.5 rounded-full bg-gradient-to-r from-amber-300 to-orange-400 shadow-sm"></div>
+                    <span class="text-xs text-slate-600 font-bold uppercase tracking-wider">Pendientes</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-3.5 rounded-full bg-slate-100 border border-slate-200"></div>
+                    <span class="text-xs text-slate-600 font-bold uppercase tracking-wider">Hábiles</span>
                 </div>
             </div>
         </div>
 
-        <div class="calendario-wrapper">
-            <table class="calendario-vacaciones">
-                <thead>
-                    <tr class="meses-header">
-                        <th class="empleado-col" rowspan="2">Empleado</th>
-                        <th class="disponible-col" rowspan="2">Disponible</th>
-                        <th class="acumuladas-col" rowspan="2">Acumuladas</th>
-                        <th class="restan-col" rowspan="2">Restan</th>
-                        {% for mes in meses_data %}
-                        <th colspan="{{ mes.total_semanas }}" class="mes-header">{{ mes.nombre }}</th>
-                        {% endfor %}
-                    </tr>
+        <!-- Tabla de Calendario -->
+        <div class="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-200 overflow-hidden relative">
+            <div class="calendario-wrapper custom-scrollbar">
+                <table class="calendario-vacaciones">
+                    <thead>
+                        <tr class="meses-header">
+                            <th class="empleado-col">Empleado</th>
+                            <th class="disponible-col"></th>
+                            <th class="acumuladas-col"></th>
+                            <th class="restan-col"></th>
+                            {% for mes in meses_data %}
+                            <th colspan="{{ mes.total_semanas }}" class="mes-header">
+                                {{ mes.nombre }}
+                            </th>
+                            {% endfor %}
+                        </tr>
 
-                    <tr class="semanas-header">
-                        {% for mes in meses_data %}
-                        {% for semana in mes.semanas %}
-                        <th class="semana-header" title="{{ semana.inicio|date:'d/m' }} - {{ semana.fin|date:'d/m' }}">
-                            {{ semana.rango }}
-                        </th>
-                        {% endfor %}
-                        {% endfor %}
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for depto_data in departamentos_data %}
-                    <tr class="departamento-header-row">
-                        <td colspan="4" class="departamento-header">
-                            {% if depto_data.departamento %}
-                            {{ depto_data.departamento.nombre }}
-                            {% else %}
-                            Sin Departamento
-                            {% endif %}
-                        </td>
-                        {% for mes in meses_data %}
-                        {% for semana in mes.semanas %}
-                        <td class="depto-cell"></td>
-                        {% endfor %}
-                        {% endfor %}
-                    </tr>
-
-                    {% for emp_data in depto_data.empleados %}
-                    <tr class="empleado-row">
-                        <td class="empleado-nombre">
-                            {{ emp_data.empleado.apellido }}, {{ emp_data.empleado.nombre }}
-
-                            {% if emp_data.vacaciones_futuras %}
+                        <tr class="semanas-header">
+                            <th class="empleado-col-sub bg-slate-50 border-r border-slate-200"></th>
+                            <th class="disponible-col-sub bg-orange-100/50 text-orange-700 border-r border-orange-200 text-[10px] font-black italic">DISP.</th>
+                            <th class="acumuladas-col-sub bg-emerald-100/50 text-emerald-700 border-r border-emerald-200 text-[10px] font-black italic">ACUM.</th>
+                            <th class="restan-col-sub bg-indigo-100/50 text-indigo-700 border-r-2 border-indigo-200 text-[10px] font-black italic">RESTAN</th>
                             
-                                {% if emp_data.vacaciones_futuras|length == 1 %}
-                                    <!-- UNA SOLA VACACIÓN -->
-                                    {% with vac=emp_data.vacaciones_futuras.0 %}
-                                    <div class="d-inline-flex align-items-center gap-1 ms-2">
-                                        <a href="{% url 'gestion:exportar_notificacion_pdf' emp_data.empleado.id vac.id %}"
-                                            class="btn btn-sm btn-danger" title="Exportar notificación a PDF">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
-                                        <button class="btn btn-sm btn-outline-secondary" 
-                                            onclick="copiarTextoVacacion('{{ emp_data.empleado.apellido }} {{ emp_data.empleado.nombre }}', '{{ vac.fecha_inicio.year }}', '{{ vac.fecha_inicio|date:'d/m/Y' }}', '{{ vac.fecha_fin|date:'d/m/Y' }}', '{{ vac.dias_solicitados }}', '{{ emp_data.dias_restantes }}', this)"
-                                            title="Copiar detalle al portapapeles">
-                                            <i class="fas fa-copy"></i>
-                                        </button>
-                                    </div>
-                                    {% endwith %}
+                            {% for mes in meses_data %}
+                                {% for semana in mes.semanas %}
+                                <th class="semana-header" title="{{ semana.inicio|date:'d/m/Y' }} - {{ semana.fin|date:'d/m/Y' }}">
+                                    <div class="semana-text-rot">{{ semana.rango }}</div>
+                                </th>
+                                {% endfor %}
+                            {% endfor %}
+                        </tr>
+                    </thead>
 
-                                {% else %}
-                                    <!-- MÚLTIPLES VACACIONES -->
-                                    <div class="btn-group ms-2">
-                                        <button type="button" class="btn btn-sm btn-danger dropdown-toggle" data-bs-toggle="dropdown">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </button>
-                                        <ul class="dropdown-menu shadow border-0">
+                    <tbody>
+                        {% for depto_data in departamentos_data %}
+                        <!-- Cabecera de Departamento -->
+                        <tr class="departamento-header-row">
+                            <td colspan="4" class="departamento-sticky-cell">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-2 h-6 bg-white rounded-full opacity-50"></div>
+                                    <span class="text-sm font-black tracking-widest">{{ depto_data.departamento.nombre|default:"GENERAL"|upper }}</span>
+                                </div>
+                            </td>
+                            {% for mes in meses_data %}
+                                {% for semana in mes.semanas %}
+                                <td class="depto-cell-empty"></td>
+                                {% endfor %}
+                            {% endfor %}
+                        </tr>
+
+                        <!-- Filas de Empleados -->
+                        {% for emp_data in depto_data.empleados %}
+                        <tr class="empleado-row group transition-all">
+                            <td class="empleado-nombre">
+                                <div class="flex items-center justify-between gap-3 px-3">
+                                    <div class="flex flex-col min-w-0">
+                                        <span class="truncate font-bold text-slate-700 text-xs uppercase" title="{{ emp_data.empleado.apellido }}, {{ emp_data.empleado.nombre }}">
+                                            {{ emp_data.empleado.apellido }}, {{ emp_data.empleado.nombre }}
+                                        </span>
+                                        <span class="text-[9px] text-slate-400 font-medium">Leg: {{ emp_data.empleado.legajo }}</span>
+                                    </div>
+                                    
+                                    {% if emp_data.vacaciones_futuras %}
+                                        <div class="flex items-center gap-1 flex-wrap justify-end" style="max-width: 120px;">
                                             {% for vac in emp_data.vacaciones_futuras %}
-                                            <li>
-                                                <div class="d-flex align-items-center justify-content-between px-2 py-1 hover-bg-light">
-                                                    <a class="dropdown-item p-0 me-2 text-wrap" style="font-size:11px; max-width: 150px;"
-                                                        href="{% url 'gestion:exportar_notificacion_pdf' emp_data.empleado.id vac.id %}">
-                                                        {{ vac.fecha_inicio|date:"d/m/Y" }} - {{ vac.fecha_fin|date:"d/m/Y" }}
-                                                        ({{ vac.dias_solicitados }}d)
-                                                    </a>
-                                                    <button class="btn btn-xs btn-outline-secondary border-0" 
-                                                        onclick="copiarTextoVacacion('{{ emp_data.empleado.apellido }} {{ emp_data.empleado.nombre }}', '{{ vac.fecha_inicio.year }}', '{{ vac.fecha_inicio|date:'d/m/Y' }}', '{{ vac.fecha_fin|date:'d/m/Y' }}', '{{ vac.dias_solicitados }}', '{{ emp_data.dias_restantes }}', this)"
-                                                        title="Copiar texto">
-                                                        <i class="fas fa-copy"></i>
-                                                    </button>
-                                                </div>
-                                            </li>
+                                                <a href="{% url 'gestion:exportar_notificacion_pdf' emp_data.empleado.id vac.id %}" 
+                                                   class="pdf-btn relative group/btn" 
+                                                   title="Imprimir: {{ vac.fecha_inicio|date:'d/m' }} al {{ vac.fecha_fin|date:'d/m' }}">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                    <!-- Mini Label Flotante (Fecha) -->
+                                                    <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                                                        {{ vac.fecha_inicio|date:"d/b" }}
+                                                    </span>
+                                                </a>
                                             {% endfor %}
-                                        </ul>
-                                    </div>
-                                {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </td>
 
-                            {% endif %}
-                        </td>
+                            <td class="kpi-cell bg-orange-50/30 text-orange-600 font-black border-l border-slate-100">{{ emp_data.dias_disponibles }}</td>
+                            <td class="kpi-cell bg-emerald-50/30 text-emerald-600 font-black border-l border-slate-100">{{ emp_data.dias_acumulados }}</td>
+                            <td class="kpi-cell bg-indigo-50/30 text-indigo-700 font-black border-l border-slate-100 border-r-2 border-r-indigo-100">{{ emp_data.dias_restantes }}</td>
 
-                        <td class="disponible">{{ emp_data.dias_disponibles }}</td>
-                        <td class="acumuladas">{{ emp_data.dias_acumulados }}</td>
-                        <td class="restan">{{ emp_data.dias_restantes }}</td>
-
-                        {% for mes in meses_data %}
-                        {% for semana in mes.semanas %}
-                        {% with estado=semana.dias|estado_vacacion_semana:emp_data.vacaciones %}
-                        {% if estado == 'aprobada' %}
-                        <td class="semana-cell vacacion-aprobada" title="Vacaciones Aprobadas"></td>
-                        {% elif estado == 'pendiente' %}
-                        <td class="semana-cell vacacion-pendiente" title="Vacaciones Pendientes"></td>
-                        {% else %}
-                        <td class="semana-cell"></td>
-                        {% endif %}
-                        {% endwith %}
+                            <!-- Celdas de Vacaciones -->
+                            {% for mes in meses_data %}
+                                {% for semana in mes.semanas %}
+                                    {% with estado=semana.dias|estado_vacacion_semana:emp_data.vacaciones %}
+                                        {% if estado == 'aprobada' %}
+                                            <td class="semana-cell group/cell">
+                                                <div class="vac-block aprobada"></div>
+                                                <div class="tooltip">Aprobada</div>
+                                            </td>
+                                        {% elif estado == 'pendiente' %}
+                                            <td class="semana-cell group/cell">
+                                                <div class="vac-block pendiente"></div>
+                                                <div class="tooltip">Pendiente</div>
+                                            </td>
+                                        {% else %}
+                                            <td class="semana-cell hover:bg-slate-50 transition-colors"></td>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endfor %}
+                            {% endfor %}
+                        </tr>
                         {% endfor %}
                         {% endfor %}
-                    </tr>
-                    {% endfor %}
-                    {% empty %}
-                    <tr>
-                        <td colspan="100" class="text-center py-4">No hay empleados registrados en este departamento</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<script>
-    function copiarTextoVacacion(nombre, periodo, inicio, fin, dias, restan, btn) {
-        // Formato: Apellido Nombre, se agregó vacaciones del periodo YYYY desde DD/MM/YY al DD/MM/YY (N Dias) restan M .
-        const texto = `${nombre}, se agregó vacaciones del periodo ${periodo} desde ${inicio} al ${fin} (${dias} Dias) restan ${restan} .`;
-        
-        // Función de éxito visual
-        const mostrarExito = () => {
-             const originalIcon = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check text-success"></i>';
-            setTimeout(() => {
-                btn.innerHTML = originalIcon;
-            }, 1500);
-        };
-
-        // Intento 1: API Moderna (Requiere HTTPS o Localhost)
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(texto).then(mostrarExito).catch(err => {
-                console.warn('Fallo API Clipboard moderna, intentando fallback...', err);
-                copiarFallback(texto, mostrarExito);
-            });
-        } else {
-            // Intento 2: Fallback para HTTP no seguro
-            copiarFallback(texto, mostrarExito);
-        }
-    }
-
-    function copiarFallback(texto, callbackExito) {
-        // Crear elemento temporal
-        const textArea = document.createElement("textarea");
-        textArea.value = texto;
-        
-        // Asegurar que no sea visible pero sea parte del DOM
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
-        document.body.appendChild(textArea);
-        
-        textArea.focus();
-        textArea.select();
-        
-        try {
-            const exitoso = document.execCommand('copy');
-            if (exitoso) {
-                callbackExito();
-            } else {
-                alert('No se pudo copiar el texto automáticamente. Por favor selecciónelo y cópielo manualmente.');
-            }
-        } catch (err) {
-            console.error('Fallback copy failed', err);
-            alert('Error al copiar al portapapeles.');
-        }
-        
-        document.body.removeChild(textArea);
-    }
-</script>
-
-{% block extra_js %}
-<!-- Bootstrap 5 JS Bundle (required for Dropdowns) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-{% endblock %}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-    /* --- CSS PARA FORZAR ANCHO COMPLETO --- */
-    .romper-contenedor {
-        width: 100vw;
-        position: relative;
-        left: 50%;
-        right: 50%;
-        margin-left: -50vw;
-        margin-right: -50vw;
-        background-color: #f8f9fa;
-        padding-top: 20px;
-        padding-bottom: 20px;
-    }
+    /* Estética General */
+    .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-    .contenido-interno {
-        padding-left: 20px;
-        padding-right: 20px;
-        width: 100%;
-    }
-
-    /* Estilos de la tabla */
     .calendario-wrapper {
-        overflow-x: auto;
-        overflow-y: auto;
-        height: calc(100vh - 200px); /* Fixed height for sticky vertical */
-        margin: 10px 0;
-        border: 1px solid #e2e8f0;
-        width: 100%;
+        overflow: auto;
+        height: calc(100vh - 280px);
         background: white;
-        position: relative;
+        border-radius: 1rem;
     }
 
     .calendario-vacaciones {
-        table-layout: fixed;
-        width: max-content; /* Let it grow */
-        border-collapse: separate; /* Required for sticky */
+        border-collapse: separate;
         border-spacing: 0;
+        table-layout: fixed;
+    }
+
+    /* Headers Principales (CAPA SUPERIOR 100) */
+    .calendario-vacaciones thead th {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .mes-header {
+        height: 45px;
+        background: #1e293b !important;
+        color: white !important; /* Texto Blanco */
         font-size: 11px;
-    }
-
-    .calendario-vacaciones th,
-    .calendario-vacaciones td {
-        border-right: 1px solid #e2e8f0;
-        border-bottom: 1px solid #e2e8f0;
-        padding: 6px 4px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        border-right: 1px solid #334155;
         text-align: center;
-        background-clip: padding-box;
     }
 
-    /* --- STICKY HEADERS (Top) --- */
-    /* Row 1: Months */
-    .meses-header th.mes-header {
-        position: sticky;
-        top: 0;
-        z-index: 40;
-        height: 40px;
-        background-color: #e0e7ff; /* Pastel Indigo 100 */
-        color: #4338ca; /* Indigo 700 text */
-        font-weight: bold;
-        text-transform: uppercase;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        border-bottom: 1px solid #c7d2fe;
+    /* Header de Semanas */
+    .semanas-header th {
+        top: 45px !important;
+        height: 85px;
+        background: #f8fafc !important;
+        border-bottom: 2px solid #e2e8f0;
+        z-index: 105;
     }
 
-    /* Row 2: Weeks */
-    .semanas-header th.semana-header {
-        position: sticky;
-        top: 40px; /* Offset by row 1 height */
-        z-index: 30;
-        height: 35px;
-        background-color: #f8fafc; /* Slate 50 */
-        color: #64748b; /* Slate 500 */
-        font-weight: 600;
+    .semana-header {
+        width: 38px;
+        min-width: 38px;
+        position: relative;
+        border-right: 1px solid #e2e8f0;
+    }
+
+    .semana-text-rot {
+        transform: rotate(-90deg) translateX(-32px);
+        transform-origin: left bottom;
+        white-space: nowrap;
         font-size: 9px;
-    }
-
-    /* --- STICKY COLUMNS (Left) --- */
-    /* Top Left Corner Headers (Employee, KPIs) */
-    /* These span 2 rows, so they need top:0 and high z-index */
-    .meses-header th.empleado-col,
-    .meses-header th.disponible-col,
-    .meses-header th.acumuladas-col,
-    .meses-header th.restan-col {
-        position: sticky;
-        top: 0;
-        z-index: 50 !important; /* Highest priority: Corner Intersection */
-        color: #1e293b;
         font-weight: 700;
-        height: 75px; /* Sum of both header rows roughly */
-        border-bottom: 1px solid #cbd5e1;
-        box-shadow: 2px 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    /* Specific Colors for Corner Headers */
-    .meses-header th.empleado-col { background-color: #ffedd5; left: 0; width: 180px; min-width: 180px; } /* Orange 100 */
-    .meses-header th.disponible-col { background-color: #fef3c7; left: 180px; width: 80px; min-width: 80px; } /* Amber 100 */
-    .meses-header th.acumuladas-col { background-color: #d1fae5; left: 260px; width: 80px; min-width: 80px; } /* Emerald 100 */
-    .meses-header th.restan-col { background-color: #dbeafe; left: 340px; width: 80px; min-width: 80px; border-right: 2px solid #94a3b8; } /* Blue 100 */
-
-
-    /* --- LEFT COLUMNS (Body Rows) --- */
-    /* Emp Name Column */
-    .empleado-nombre {
-        position: sticky;
-        left: 0;
-        z-index: 20;
-        background-color: #fff7ed; /* Orange 50 */
+        color: #64748b;
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        width: 100px;
         text-align: left;
-        padding-left: 10px;
-        font-weight: 500;
-        color: #334155;
-        border-right: 1px solid #fdba74;
     }
 
-    /* KPI Columns */
-    .disponible {
-        position: sticky;
-        left: 180px;
-        z-index: 20;
-        background-color: #fffbeb; /* Amber 50 */
-        font-weight: 600;
-        color: #92400e;
-        border-right: 1px solid #fcd34d;
+    /* Columnas Sticky Izquierda (CAPA MEDIA 90) */
+    .empleado-col, .empleado-col-sub, .empleado-nombre {
+        position: sticky; left: 0; width: 230px; min-width: 230px; z-index: 90;
+    }
+    .disponible-col, .disponible-col-sub, .empleado-row td:nth-child(2) {
+        position: sticky; left: 230px; width: 65px; min-width: 65px; z-index: 90;
+    }
+    .acumuladas-col, .acumuladas-col-sub, .empleado-row td:nth-child(3) {
+        position: sticky; left: 295px; width: 65px; min-width: 65px; z-index: 90;
+    }
+    .restan-col, .restan-col-sub, .empleado-row td:nth-child(4) {
+        position: sticky; left: 360px; width: 70px; min-width: 70px; z-index: 90;
     }
 
-    .acumuladas {
-        position: sticky;
-        left: 260px;
-        z-index: 20;
-        background-color: #ecfdf5; /* Emerald 50 */
-        font-weight: 600;
-        color: #065f46;
-        border-right: 1px solid #6ee7b7;
+    /* INTERSECCIÓN SUPERIOR (Fila 1: Meses + Esquina) */
+    /* El fondo debe ser oscuro y el texto blanco */
+    .meses-header th {
+        background: #1e293b !important;
+        color: white !important;
+        z-index: 120 !important;
     }
 
-    .restan {
-        position: sticky;
-        left: 340px;
-        z-index: 20;
-        background-color: #eff6ff; /* Blue 50 */
-        font-weight: 600;
-        color: #1e40af;
-        border-right: 2px solid #94a3b8; /* Strong separator */
-    }
+    /* INTERSECCIÓN INFERIOR (Fila 2: Semanas + KPIs) */
+    /* Aquí restauramos los colores que te gustaban */
+    .semanas-header .empleado-col-sub { background: #f8fafc !important; z-index: 120 !important; }
+    .semanas-header .disponible-col-sub { background: #ffedd5 !important; z-index: 120 !important; color: #c2410c !important; }
+    .semanas-header .acumuladas-col-sub { background: #dcfce7 !important; z-index: 120 !important; color: #15803d !important; }
+    .semanas-header .restan-col-sub { background: #e0e7ff !important; z-index: 120 !important; color: #4338ca !important; }
 
-    /* --- DEPARTMENT HEADER --- */
-    /* Needs to span perfectly across the sticky columns too */
-    .departamento-header {
-        position: sticky;
-        left: 0;
-        z-index: 25; /* Above data rows, below headers */
-        background-color: #fca5a5; /* Red 300 (Pastel) */
-        color: #7f1d1d; /* Red 900 */
-        font-weight: 700;
-        text-transform: uppercase;
-        text-align: left;
-        padding-left: 15px;
-        box-shadow: 2px 0 4px rgba(0,0,0,0.05);
-    }
-    
-    .departamento-header-row .depto-cell {
-        background-color: #fef2f2; /* Red 50 */
-    }
+    .empleado-nombre { background: white !important; height: 50px; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #e2e8f0; }
+    .kpi-cell { text-align: center; font-size: 13px; background: white !important; border-bottom: 1px solid #f1f5f9; }
 
-    /* --- VACATION CELLS --- */
+    /* Estilo de Celdas Body */
     .semana-cell {
-        width: 32px;
-        min-width: 32px;
-        background-color: white;
+        width: 38px;
+        height: 50px;
+        border-right: 1px solid #f1f5f9;
+        border-bottom: 1px solid #f1f5f9;
+        position: relative;
+        padding: 4px;
+        z-index: 10; /* Capa base */
     }
 
-    /* Pastel Approvals */
-    .vacacion-aprobada, .semana-cell.vacacion-aprobada, .color-box.vacacion-aprobada {
-        background: #99f6e4; /* Teal 200 */
-        border: 1px solid #5eead4;
+    /* Departamento Sticky (CAPA MEDIA 95) */
+    .departamento-sticky-cell {
+        position: sticky; left: 0; 
+        z-index: 95; /* Por encima de los empleados pero debajo del header */
+        background: #3b82f6 !important;
+        color: white; padding: 10px 20px;
+    }
+    .depto-cell-empty { background: #eff6ff !important; height: 40px; border-bottom: 1px solid #dbeafe; }
+
+    /* Botón PDF */
+    .pdf-btn {
+        width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+        background: #fef2f2; color: #ef4444; border-radius: 8px; transition: all 0.2s; border: 1px solid #fee2e2;
+    }
+    .pdf-btn:hover { background: #ef4444; color: white; border-color: #ef4444; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+
+    /* Dropdown PDF Multiples */
+    .pdf-dropdown {
+        position: absolute; left: 40px; top: 0; display: none; background: white;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+        border-radius: 12px; min-width: 160px; z-index: 1000; border: 1px solid #e2e8f0;
+    }
+    .group\/pdf:hover .pdf-dropdown { display: block; }
+    .dropdown-item {
+        display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 10px; font-weight: 700;
+        color: #475569; transition: all 0.2s;
+    }
+    .dropdown-item:hover { background: #fef2f2; color: #ef4444; }
+
+    /* Estilos para Bloques de Vacaciones (Agregado para corregir visualización) */
+    .vac-block {
+        width: 100%;
+        height: 100%;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    
+    .vac-block.aprobada {
+        background: #22c55e; /* VERDE */
+        box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+    }
+    
+    .vac-block.pendiente {
+        background: #f59e0b; /* AMBAR */
+        box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
     }
 
-    /* Pastel Pending */
-    .vacacion-pendiente, .semana-cell.vacacion-pendiente, .color-box.vacacion-pendiente {
-        background: #fde68a; /* Amber 200 */
-        border: 1px solid #fcd34d;
-    }
-
-    /* Leyenda */
-    .leyenda-top {
-        display: inline-flex;
-        align-items: center;
-    }
-    .color-box {
-        width: 20px;
-        height: 20px;
-        border-radius: 4px;
-        display: inline-block;
-    }
-
-    /* Buttons */
-    .btn-danger {
-        background-color: #f87171; /* Red 400 Pastel */
-        border-color: #f87171;
-    }
-    .btn-outline-danger {
-        color: #fb7185;
-        border-color: #fb7185;
-    }
-    .btn-outline-danger:hover {
-        background-color: #fb7185;
+    /* Tooltip oculto por defecto */
+    .tooltip {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%) translateY(-5px);
+        background: #1e293b;
         color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s;
+        z-index: 50;
+    }
+    
+    .tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 4px;
+        border-style: solid;
+        border-color: #1e293b transparent transparent transparent;
+    }
+
+    /* Mostrar tooltip al pasar el mouse por la celda */
+    .semana-cell:hover .tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(-8px);
     }
 </style>
 
+<script>
+    // Asegurar que el scroll empiece en la fecha de hoy si existe el año actual
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        // Podríamos scrollar hasta la columna correspondiente al mes actual...
+    });
+</script>
 {% endblock %}

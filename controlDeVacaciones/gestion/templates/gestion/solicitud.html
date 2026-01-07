@@ -195,14 +195,14 @@
 
 <!-- PERÍODO PERMITIDO / INFO -->
 <section class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-  <div class="kpi-card border-l-4 border-indigo-500">
-    <div class="icon-pill" style="background: linear-gradient(135deg,#6366f1,#4f46e5);">🗓</div>
-    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Período para tomar vacaciones</p>
+  <div class="kpi-card border-l-4 border-slate-400 opacity-80">
+    <div class="icon-pill" style="background: linear-gradient(135deg,#94a3b8,#64748b);">🗓</div>
+    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Período sugerido (LCT)</p>
     <p class="text-lg font-semibold text-slate-800">
       {{ periodo_goce_inicio }} → {{ periodo_goce_fin }}
     </p>
-    <p class="text-[11px] text-indigo-900/80 mt-1">
-      Las fechas seleccionadas deben estar dentro de este rango.
+    <p class="text-[11px] text-slate-500 mt-1">
+      Rango legal preferente. El sistema permite cargar fuera de término si es necesario.
     </p>
   </div>
 
@@ -238,15 +238,24 @@
       <label for="empleado_id" class="block text-sm font-semibold text-slate-700">Empleado</label>
       <div class="input-wrapper">
         <span class="input-icon">👤</span>
-        <select id="empleado_id" name="empleado_id" class="input-base pr-10" required>
-          <option value="">Seleccione un empleado...</option>
-          {% for emp in todos_empleados %}
-          <option value="{{ emp.id }}"
-            {% if empleado_seleccionado_id|default:'' == emp.id|stringformat:"s" %}selected{% endif %}>
-            {{ emp.apellido }}, {{ emp.nombre }} ({{ emp.legajo|default:"S/L" }})
-          </option>
-          {% endfor %}
-        </select>
+        {% if es_manager %}
+            <select id="empleado_id" name="empleado_id" class="input-base pr-10" required>
+              <option value="">Seleccione un empleado...</option>
+              {% for emp in todos_empleados %}
+              <option value="{{ emp.id }}"
+                {% if empleado_seleccionado_id|default:'' == emp.id|stringformat:"s" %}selected{% endif %}>
+                {{ emp.apellido }}, {{ emp.nombre }} ({{ emp.legajo|default:"S/L" }})
+              </option>
+              {% endfor %}
+            </select>
+        {% else %}
+            <!-- Modo Empleado: Solo lectura -->
+            {% with emp=todos_empleados.0 %}
+            <input type="text" class="input-base bg-slate-100 text-slate-500 cursor-not-allowed" 
+                   value="{{ emp.apellido }}, {{ emp.nombre }} ({{ emp.legajo|default:'S/L' }})" disabled>
+            <input type="hidden" id="empleado_id" name="empleado_id" value="{{ emp.id }}">
+            {% endwith %}
+        {% endif %}
       </div>
     </div>
 

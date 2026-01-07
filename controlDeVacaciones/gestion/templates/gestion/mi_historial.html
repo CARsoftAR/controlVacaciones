@@ -1,47 +1,141 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Mi Historial de Vacaciones</title>
-    <style>
-        body { background-color: #F8F9FA; font-family: Arial, sans-serif; color: #495057; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); }
-        h2 { color: #555; border-bottom: 2px solid #EEE; padding-bottom: 10px; }
-        .card { padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #eee; }
-        .info-saldo { background-color: #E6F7F0; display: flex; justify-content: space-around; padding: 20px; }
-        .saldo-value { font-size: 1.5em; font-weight: bold; color: #007bff; }
-        .styled-table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 15px; }
-        .styled-table th, .styled-table td { border: 1px solid #E9ECEF; padding: 10px; text-align: left; }
-        .styled-table th { background-color: #E6F0FF; color: #495057; }
-        .status-aprobado { background-color: #B8E994; padding: 5px; border-radius: 4px; text-align: center; }
-        .status-solicitado { background-color: #FFD5A8; padding: 5px; border-radius: 4px; text-align: center; }
-        .status-rechazado { background-color: #FFB3B3; padding: 5px; border-radius: 4px; text-align: center; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h2>👤 Mi Historial de Vacaciones</h2>
-            <p>Resumen de tu saldo y estado de tus solicitudes.</p>
-        </header>
-        <h3>Saldo Detallado - Ciclo 2025 (Muestra)</h3>
-        <div class="card info-saldo">
-            <div><label>Días de Derecho:</label><div class="saldo-value">14</div></div>
-            <div><label>Días Arrastrados:</label><div class="saldo-value">+ 7</div></div>
-            <div><label>Días Aprobados/Tomados:</label><div class="saldo-value" style="color: #d9534f;">- 5</div></div>
-            <div><label>SALDO DISPONIBLE FINAL:</label><div class="saldo-value" style="color: #B8E994; font-size: 2em;">16</div></div>
-        </div>
-        <h3>Mis Solicitudes</h3>
-        <table class="styled-table">
-            <thead>
-                <tr><th>Inicio</th><th>Fin</th><th>Días</th><th>Estado</th></tr>
-            </thead>
-            <tbody>
-                <tr><td>2026-03-10</td><td>2026-03-14</td><td>5</td><td><span class="status-aprobado">Aprobado</span></td></tr>
-                <tr><td>2026-06-02</td><td>2026-06-06</td><td>5</td><td><span class="status-solicitado">Solicitado</span></td></tr>
-                <tr><td>2025-12-15</td><td>2025-12-25</td><td>8</td><td><span class="status-rechazado">Rechazado</span></td></tr>
-            </tbody>
-        </table>
+{% extends 'gestion/base.html' %}
+{% load static %}
+
+{% block title %}Mi Historial de Vacaciones{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4">
+    
+    <!-- Header de la Página -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Mi Historial de Vacaciones</h1>
+        <p class="text-gray-600 dark:text-gray-400">Resumen detallado de tus días y estado de solicitudes.</p>
     </div>
-</body>
-</html>
+
+    <!-- Desglose de Saldo (KPIs) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        
+        <!-- Días de Derecho -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Días de Derecho</p>
+            <div class="text-3xl font-black text-blue-600 dark:text-blue-400">
+                {{ saldo.dias_base_ciclo }}
+            </div>
+            <p class="text-[10px] text-gray-400 mt-1">Sgún LC Argentina</p>
+        </div>
+
+        <!-- Días Arrastrados -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Acumuladas</p>
+            <div class="text-3xl font-black text-purple-600 dark:text-purple-400">
+                + {{ saldo.dias_adicionales|default:0 }}
+            </div>
+            <p class="text-[10px] text-gray-400 mt-1">De años anteriores</p>
+        </div>
+
+        <!-- Días Consumidos -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Aprobados</p>
+            <div class="text-3xl font-black text-red-500 dark:text-red-400">
+                - {{ dias_consumidos }}
+            </div>
+            <p class="text-[10px] text-gray-400 mt-1">Ya confirmados</p>
+        </div>
+
+        <!-- Saldo Final -->
+        <div class="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-2xl shadow-lg text-white">
+            <p class="text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Disponible Final</p>
+            <div class="text-4xl font-black">
+                {{ saldo.total_disponible }}
+            </div>
+            <p class="text-[10px] opacity-80 mt-1">Días restantes hoy</p>
+        </div>
+    </div>
+
+    <!-- Tabla de Solicitudes -->
+    <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white">Mis Solicitudes</h3>
+            <span class="text-xs font-medium text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-3 py-1 rounded-full">
+                {{ solicitudes.count }} Registro(s)
+            </span>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-900/30 text-gray-500 dark:text-gray-400 text-xs uppercase font-bold tracking-widest">
+                        <th class="px-6 py-4">Período</th>
+                        <th class="px-6 py-4">Días</th>
+                        <th class="px-6 py-4">Estado</th>
+                        <th class="px-6 py-4">Razón</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for sol in solicitudes %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold text-gray-800 dark:text-white">{{ sol.fecha_inicio|date:"d M, Y" }}</span>
+                                <span class="text-[10px] text-gray-400">{{ sol.fecha_fin|date:"d M, Y" }}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                {{ sol.dias_solicitados }} días
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if sol.estado == 'Aprobada' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                    Aprobada
+                                </span>
+                            {% elif sol.estado == 'Pendiente' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    Pendiente
+                                </span>
+                            {% elif sol.estado == 'Rechazada' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                    Rechazada
+                                </span>
+                            {% else %}
+                                <span class="text-xs font-medium text-gray-500">{{ sol.estado }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 max-w-xs truncate" title="{{ sol.razon }}">
+                                {{ sol.razon|default:"Sin descripción" }}
+                            </p>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-calendar-times text-4xl text-gray-200 mb-4"></i>
+                                <p class="text-gray-400 font-medium">No tienes solicitudes registradas aún.</p>
+                                <a href="{% url 'gestion:solicitar_mis_vacaciones' %}" class="mt-4 text-blue-500 hover:underline font-bold text-sm">
+                                    Crear mi primera solicitud
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Botón Volver -->
+    <div class="mt-8 flex justify-center">
+        <a href="{% url 'gestion:dashboard' %}" class="inline-flex items-center gap-2 px-6 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
+            <i class="fas fa-arrow-left"></i>
+            Volver al Inicio
+        </a>
+    </div>
+
+</div>
+{% endblock %}

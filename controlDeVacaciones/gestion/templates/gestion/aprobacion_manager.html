@@ -1,100 +1,209 @@
 {% extends "gestion/base.html" %}
 
-{% block title %}Panel de Aprobación de Vacaciones{% endblock %}
+{% block title %}Aprobación de Solicitudes | ABBAMAT{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-[#fdfcf9] py-10 px-4 md:px-10 font-[Inter] text-[#374151]">
-
-    <!-- Título -->
-    <div class="max-w-7xl mx-auto mb-8">
-        <h1 class="text-3xl font-extrabold text-[#166534] border-b-2 border-[#bbf7d0] pb-3">
-            Panel de Aprobación de Solicitudes Pendientes
-        </h1>
-        <p class="text-gray-600 mt-2">
-            Utiliza esta página para revisar y gestionar las solicitudes de vacaciones que esperan tu aprobación.
-        </p>
+<div class="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8 font-[Inter]">
+    
+    <!-- Encabezado Premium -->
+    <div class="max-w-7xl mx-auto mb-10">
+        <div class="relative overflow-hidden bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
+            <!-- Decoración de fondo -->
+            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-green-50 rounded-full blur-3xl opacity-50"></div>
+            <div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-32 h-32 bg-blue-50 rounded-full blur-3xl opacity-50"></div>
+            
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+                            Módulo de Aprobación
+                        </span>
+                    </div>
+                    <h1 class="text-3xl font-black text-slate-800 tracking-tight">
+                        Gestión de Solicitudes <span class="text-green-600">Pendientes</span>
+                    </h1>
+                    <p class="text-slate-500 mt-2 max-w-2xl leading-relaxed">
+                        Revisa, aprueba o rechaza los pedidos de vacaciones de tu equipo. El sistema notificará automáticamente a cada empleado sobre tu decisión.
+                    </p>
+                </div>
+                
+                <div class="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <div class="bg-white p-3 rounded-xl shadow-sm">
+                        <i class="fas fa-clipboard-list text-2xl text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">En espera</p>
+                        <p class="text-2xl font-black text-slate-800">{{ solicitudes_pendientes.count }} Solicitudes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    {% if messages %}
-        <div class="max-w-7xl mx-auto mb-6 space-y-2">
-            {% for message in messages %}
-                <div class="p-3 rounded-lg text-sm font-medium shadow-sm
-                    {% if message.tags == 'success' %} bg-[#dcfce7] text-[#166534] border border-[#bbf7d0]
-                    {% elif message.tags == 'error' %} bg-[#fee2e2] text-[#991b1b] border border-[#fecaca]
-                    {% elif message.tags == 'warning' %} bg-[#fef9c3] text-[#854d0e] border border-[#fde68a]
-                    {% else %} bg-[#e0f2fe] text-[#075985] border border-[#bae6fd]{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
-    <!-- Listado de Solicitudes Pendientes (Necesita la lista 'solicitudes_pendientes' en el contexto) -->
+    <!-- Contenido Principal -->
     <div class="max-w-7xl mx-auto">
-        <h2 class="text-2xl font-bold mb-4 text-[#14532d]">Pendientes de tu Revisión</h2>
+        
+        <h2 class="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
+            <i class="fas fa-hourglass-half text-amber-500"></i>
+            Pendientes de tu Revisión
+        </h2>
 
         {% if not solicitudes_pendientes %}
-            <div class="bg-white p-6 rounded-xl border border-[#e2e8f0] shadow-sm text-center text-gray-500">
-                <p>🎉 ¡Excelente! No tienes solicitudes pendientes de aprobación en este momento.</p>
+            <!-- Estado Vacío Premium -->
+            <div class="bg-white rounded-3xl p-16 text-center border border-slate-200 shadow-sm overflow-hidden relative">
+                <div class="relative z-10">
+                    <div class="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-check-double text-4xl text-green-500 animate-bounce"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800">¡Todo al día!</h3>
+                    <p class="text-slate-500 max-w-sm mx-auto mt-2">
+                        No tienes solicitudes de vacaciones pendientes de aprobación en este momento.
+                    </p>
+                </div>
+                <!-- Círculos decorativos -->
+                <div class="absolute -top-24 -right-24 w-64 h-64 bg-slate-50 rounded-full"></div>
             </div>
         {% else %}
-            <div class="overflow-x-auto bg-white rounded-xl border border-[#e2e8f0] shadow-sm">
-                <table class="min-w-full divide-y divide-[#e2e8f0] text-sm">
-                    <thead class="bg-[#fef9c3] border-b border-[#fde68a]">
-                        <tr>
-                            <th class="px-6 py-3 text-left font-semibold uppercase text-[#854d0e]">Solicitante</th>
-                            <th class="px-6 py-3 text-left font-semibold uppercase text-[#854d0e]">Período</th>
-                            <th class="px-6 py-3 text-center font-semibold uppercase text-[#854d0e]">Días Naturales</th>
-                            <th class="px-6 py-3 text-left font-semibold uppercase text-[#854d0e]">Razón (Empleado)</th>
-                            <th class="px-6 py-3 text-left font-semibold uppercase text-[#854d0e]">Solicitado el</th>
-                            <th class="px-6 py-3 text-center font-semibold uppercase text-[#854d0e]">Acción</th>
+            <!-- Grilla de Solicitudes (Diseño Mobile First - Cards en móvil, Tabla en PC) -->
+            <div class="hidden md:block overflow-hidden bg-white rounded-3xl shadow-sm border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-100">
+                    <thead>
+                        <tr class="bg-slate-50/50">
+                            <th class="px-6 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Colaborador</th>
+                            <th class="px-6 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Período Solicitado</th>
+                            <th class="px-6 py-5 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest">Días</th>
+                            <th class="px-6 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Comentarios</th>
+                            <th class="px-6 py-5 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest">Gestión</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-[#f1f5f9]">
+                    <tbody class="divide-y divide-slate-100">
                         {% for registro in solicitudes_pendientes %}
-                        <tr class="hover:bg-[#fefce8] transition duration-100">
-                            <td class="px-6 py-4 whitespace-nowrap font-medium text-[#374151]">
-                                {{ registro.empleado.apellido }}, {{ registro.empleado.nombre }}
-                                <span class="block text-xs text-gray-500">{{ registro.empleado.legajo }}</span>
+                        <tr class="hover:bg-slate-50/50 transition duration-150 group">
+                            <td class="px-6 py-5">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 border-2 border-white shadow-sm">
+                                        {{ registro.empleado.nombre|slice:":1" }}{{ registro.empleado.apellido|slice:":1" }}
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-slate-900 leading-tight">{{ registro.empleado.nombre }} {{ registro.empleado.apellido }}</p>
+                                        <p class="text-xs text-slate-400">Legajo: {{ registro.empleado.legajo }}</p>
+                                    </div>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-                                {{ registro.fecha_inicio|date:"d M Y" }} al {{ registro.fecha_fin|date:"d M Y" }}
+                            <td class="px-6 py-5">
+                                <div class="flex items-center gap-3">
+                                    <i class="far fa-calendar-alt text-slate-300"></i>
+                                    <div>
+                                        <span class="text-sm font-semibold text-slate-700">{{ registro.fecha_inicio|date:"d M, Y" }}</span>
+                                        <i class="fas fa-arrow-right text-[10px] mx-1 text-slate-300"></i>
+                                        <span class="text-sm font-semibold text-slate-700">{{ registro.fecha_fin|date:"d M, Y" }}</span>
+                                    </div>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 text-center font-bold text-[#14532d]">
-                                {{ registro.dias_solicitados }}
+                            <td class="px-6 py-5 text-center">
+                                <span class="inline-flex items-center justify-center w-10 h-10 bg-green-50 text-green-700 rounded-xl font-black text-sm border border-green-100 shadow-sm">
+                                    {{ registro.dias_solicitados }}
+                                </span>
                             </td>
-                            <td class="px-6 py-4 text-gray-600 max-w-xs truncate" title="{{ registro.razon|default:'Sin razón especificada.' }}">
-                                {{ registro.razon|default:'N/A' }}
+                            <td class="px-6 py-5">
+                                <p class="text-xs text-slate-500 max-w-[200px] truncate italic" title="{{ registro.razon|default:'Sin comentarios adicionales.' }}">
+                                    {{ registro.razon|default:'Sin comentarios' }}
+                                </p>
                             </td>
-                            <td class="px-6 py-4 text-gray-600">
-                                {{ registro.fecha_solicitud|date:"d M Y" }}
-                            </td>
-                            <td class="px-3 py-4 text-center whitespace-nowrap">
-                                <form method="POST" action="{% url 'gestion:aprobar_rechazar' solicitud_id=registro.id %}" class="inline-flex space-x-2">
-                                    {% csrf_token %}
-                                    <!-- Botón Aprobar -->
-                                    <button type="submit" name="accion" value="aprobar"
-                                        title="Aprobar Solicitud"
-                                        class="p-2 rounded-full text-white bg-[#10b981] hover:bg-[#059669] transition transform hover:scale-105 shadow-md">
-                                        <!-- Icono de Check -->
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                                    </button>
-                                    <!-- Botón Rechazar -->
-                                    <button type="submit" name="accion" value="rechazar"
-                                        title="Rechazar Solicitud"
-                                        class="p-2 rounded-full text-white bg-[#ef4444] hover:bg-[#dc2626] transition transform hover:scale-105 shadow-md">
-                                        <!-- Icono de X -->
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-circle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-                                    </button>
-                                </form>
+                            <td class="px-6 py-5">
+                                <div class="flex justify-end gap-2">
+                                    <form method="POST" action="{% url 'gestion:aprobar_rechazar' solicitud_id=registro.id %}" class="flex gap-2">
+                                        {% csrf_token %}
+                                        <!-- Botón Rechazar -->
+                                        <button type="submit" name="accion" value="rechazar" 
+                                                class="flex items-center gap-2 px-4 py-2 bg-white text-rose-600 rounded-xl font-bold text-xs border border-rose-100 hover:bg-rose-600 hover:text-white transition-all shadow-sm">
+                                            <i class="fas fa-times"></i> Rechazar
+                                        </button>
+                                        <!-- Botón Aprobar -->
+                                        <button type="submit" name="accion" value="aprobar" 
+                                                class="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-xl font-bold text-xs hover:bg-green-700 transition-all shadow-md shadow-green-100">
+                                            <i class="fas fa-check"></i> Aprobar
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        {% endif %}
-    </div>
 
+            <!-- Mobile: Lista de Cards -->
+            <div class="md:hidden space-y-4">
+                {% for registro in solicitudes_pendientes %}
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
+                                {{ registro.empleado.nombre|slice:":1" }}{{ registro.empleado.apellido|slice:":1" }}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 leading-tight">{{ registro.empleado.nombre }} {{ registro.empleado.apellido }}</h4>
+                                <span class="text-[10px] text-slate-400 uppercase font-black">Legajo: {{ registro.empleado.legajo }}</span>
+                            </div>
+                        </div>
+                        <span class="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-lg border border-green-100">
+                            {{ registro.dias_solicitados }} días
+                        </span>
+                    </div>
+                    
+                    <div class="bg-slate-50 rounded-xl p-4 mb-4 flex items-center justify-between gap-2 border border-slate-100">
+                        <div class="text-center flex-1">
+                            <p class="text-[9px] uppercase font-black text-slate-400 mb-1">Inicio</p>
+                            <p class="text-xs font-bold text-slate-700">{{ registro.fecha_inicio|date:"d/m/Y" }}</p>
+                        </div>
+                        <i class="fas fa-long-arrow-alt-right text-slate-300"></i>
+                        <div class="text-center flex-1">
+                            <p class="text-[9px] uppercase font-black text-slate-400 mb-1">Fin</p>
+                            <p class="text-xs font-bold text-slate-700">{{ registro.fecha_fin|date:"d/m/Y" }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <form method="POST" action="{% url 'gestion:aprobar_rechazar' solicitud_id=registro.id %}" class="w-full flex gap-2">
+                            {% csrf_token %}
+                            <button type="submit" name="accion" value="rechazar" class="flex-1 py-3 bg-white text-rose-600 rounded-xl font-bold text-xs border border-rose-100">
+                                <i class="fas fa-times mr-1"></i> Rechazar
+                            </button>
+                            <button type="submit" name="accion" value="aprobar" class="flex-[2] py-3 bg-green-600 text-white rounded-xl font-bold text-xs shadow-md shadow-green-100">
+                                <i class="fas fa-check mr-1"></i> Aprobar Solicitud
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Guía de acción rápida -->
+        <div class="mt-12 bg-indigo-900 rounded-3xl p-8 shadow-xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-8 opacity-10">
+                <i class="fas fa-info-circle text-[120px] text-white"></i>
+            </div>
+            <div class="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                <div class="bg-white/10 p-5 rounded-2xl backdrop-blur-sm border border-white/10">
+                    <i class="fas fa-lightbulb text-3xl text-yellow-400"></i>
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold text-white mb-2">Consejos de Gestión</h4>
+                    <p class="text-indigo-100 text-sm leading-relaxed">
+                        Recuerda verificar el calendario general antes de aprobar múltiples solicitudes para las mismas fechas. 
+                        Asegúrate de que el equipo mantenga la capacidad operativa necesaria durante los periodos de alta demanda.
+                    </p>
+                </div>
+                <div class="md:ml-auto">
+                    <a href="{% url 'gestion:calendario_global' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-sm backdrop-blur-sm transition-all border border-white/20">
+                        <i class="fas fa-calendar-alt"></i> Ver Calendario General
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
 </div>
 {% endblock %}

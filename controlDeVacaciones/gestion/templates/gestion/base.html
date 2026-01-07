@@ -11,8 +11,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Font Awesome para iconos -->
+<!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js para gráficos interactivos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <!-- Tailwind CSS (via CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -33,6 +36,16 @@
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/fixes.css' %}">
 
+    <!-- PWA Config -->
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="{% static 'img/icon-192.png' %}">
+    
+    <!-- Force Standalone Mode (iOS/Android Legacy) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <title>{% block title %}Control de Vacaciones - ABBAMAT{% endblock %}</title>
 
     {% block extra_css %}{% endblock %}
@@ -50,7 +63,7 @@
 
     {% if user.is_authenticated %}
     <!-- Top Navigation Bar -->
-    <nav class="bg-gradient-to-r from-purple-600 via-blue-600 to-blue-700 shadow-lg sticky top-0 z-50">
+    <nav class="bg-gradient-to-r from-purple-600 via-blue-600 to-blue-700 shadow-lg sticky top-0 z-[1000]">
         <div class="max-w-7xl mx-auto px-6">
             <div class="flex items-center justify-between h-20">
 
@@ -95,6 +108,12 @@
                                     <i class="fas fa-list-check text-orange-600"></i>
                                     <span class="text-gray-700 font-medium">Solicitudes</span>
                                 </a>
+                                <a href="{% url 'gestion:aprobacion_manager' %}"
+                                    class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                                    <i class="fas fa-user-check text-green-600"></i>
+                                    <span class="text-gray-700 font-medium">Aprobaciones Pendientes</span>
+                                </a>
+
                                 <a href="{% url 'gestion:calendario_global' %}"
                                     class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 last:rounded-b-lg">
                                     <i class="fas fa-calendar-days text-purple-600"></i>
@@ -123,14 +142,25 @@
                                     <span class="text-gray-700 font-medium">Saldos</span>
                                 </a>
                                 <a href="{% url 'gestion:gestion_festivos' %}"
-                                    class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 last:rounded-b-lg">
+                                    class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
                                     <i class="fas fa-calendar-star text-red-600"></i>
                                     <span class="text-gray-700 font-medium">Días Festivos</span>
                                 </a>
+                                <a href="{% url 'gestion:configurar_email' %}"
+                                    class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 last:rounded-b-lg">
+                                    <i class="fas fa-envelope-circle-check text-indigo-600"></i>
+                                    <span class="text-gray-700 font-medium">Configurar Emails</span>
+                                </a>
+
                             </div>
                         </div>
                         {% else %}
                         <!-- Employee Menu -->
+                        <a href="{% url 'gestion:solicitar_mis_vacaciones' %}"
+                            class="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:bg-white/20 transition">
+                            <i class="fas fa-paper-plane"></i>
+                            <span class="font-medium">Solicitar Vacaciones</span>
+                        </a>
                         <a href="{% url 'gestion:historial_personal' %}"
                             class="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:bg-white/20 transition">
                             <i class="fas fa-clock-rotate-left"></i>
@@ -140,29 +170,71 @@
                             class="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:bg-white/20 transition">
                             <i class="fas fa-calendar-check"></i>
                             <span class="font-medium">Días Disponibles</span>
-                        </a>
-                        <a href="{% url 'gestion:calendario_global' %}"
-                            class="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:bg-white/20 transition">
-                            <i class="fas fa-calendar-days"></i>
-                            <span class="font-medium">Calendario</span>
-                        </a>
                         {% endif %}
                     </div>
                 </div>
 
+                <!-- Notificaciones -->
+                <div class="relative group">
+                    <a href="{% url 'gestion:lista_notificaciones' %}" class="relative p-2 text-white hover:bg-white/10 rounded-full transition-all">
+                        <i class="fas fa-bell text-xl"></i>
+                        <div id="notif-badge-container">
+                            {% if notif_count > 0 %}
+                            <span class="absolute top-0 right-0 flex h-4 w-4">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span id="notif-count-badge" class="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[10px] items-center justify-center font-bold">
+                                    {{ notif_count }}
+                                </span>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    
+                    <!-- Dropdown rápido (pc) -->
+                    {% if notif_list_preview %}
+                    <div class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[9999]">
+                        <div class="p-4 border-bottom border-gray-50 flex justify-between items-center">
+                            <span class="font-bold text-gray-800">Notificaciones</span>
+                            <span id="notif-dropdown-subtitle" class="text-xs text-blue-600 font-semibold">{{ notif_count }} nuevas</span>
+                        </div>
+                        <div class="max-h-96 overflow-y-auto">
+                            {% if tareas_pendientes_count > 0 %}
+                            <a href="{% url 'gestion:aprobacion_manager' %}" class="block p-4 hover:bg-amber-50 transition border-l-4 border-amber-500 bg-amber-50/30">
+                                <p class="text-xs font-bold text-amber-900">⚠️ Tareas Pendientes de Aprobación</p>
+                                <p class="text-xs text-amber-700">Tienes {{ tareas_pendientes_count }} solicitudes esperando tu respuesta.</p>
+                            </a>
+                            {% endif %}
+
+                            {% for n in notif_list_preview %}
+
+                            <a href="{% url 'gestion:marcar_notificacion_leida' n.id %}" class="block p-4 hover:bg-gray-50 transition border-l-4 border-blue-500 bg-blue-50/30">
+                                <p class="text-xs font-bold text-gray-900">{{ n.titulo }}</p>
+                                <p class="text-xs text-gray-600 truncate">{{ n.mensaje }}</p>
+                                <p class="text-[10px] text-gray-400 mt-1">{{ n.fecha_creacion|timesince }}</p>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        <a href="{% url 'gestion:lista_notificaciones' %}" class="block p-3 text-center text-xs font-bold text-blue-600 bg-gray-50 rounded-b-xl hover:bg-blue-600 hover:text-white transition">
+                            Ver todas las notificaciones
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
                 <!-- Right Side - User Menu -->
+
                 <div class="flex items-center gap-4">
-                    <!-- User Info -->
-                    <div class="hidden md:flex items-center gap-3">
-                        <div class="text-right">
-                            <p class="text-white font-semibold text-sm">{{ user.first_name|default:user.username }}</p>
-                            <p class="text-blue-100 text-xs">
+                    <!-- User Info (Visible en todos los dispositivos) -->
+                    <div class="flex items-center gap-2 md:gap-3 bg-white/10 px-2 py-1 rounded-full border border-white/20">
+                        <div class="text-right hidden xs:block">
+                            <p class="text-white font-bold text-[10px] md:text-sm leading-tight">{{ user.empleado.nombre|default:user.username }}</p>
+                            <p class="text-blue-100 text-[9px] md:text-xs leading-tight">
                                 {% if user.empleado.es_manager %}Manager{% else %}Empleado{% endif %}
                             </p>
                         </div>
                         <div
-                            class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-bold shadow-lg">
-                            {{ user.first_name|first|default:user.username|first|upper }}
+                            class="w-7 h-7 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-black shadow-lg text-[10px] md:text-base border border-white/40">
+                            {{ user.empleado.nombre|first|upper }}{{ user.empleado.apellido|first|upper }}
                         </div>
                     </div>
 
@@ -204,6 +276,12 @@
                         </div>
                     </div>
 
+                    <!-- PWA Install Button (Hidden by default) -->
+                    <button id="install-btn" class="hidden flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition shadow-lg animate-pulse font-semibold">
+                        <i class="fas fa-download"></i>
+                        <span class="hidden md:inline">Instalar App</span>
+                    </button>
+
                     <!-- Mobile Menu Button -->
                     <button id="mobile-menu-btn"
                         class="lg:hidden p-2 rounded-lg text-white hover:bg-white/20 transition">
@@ -216,6 +294,21 @@
         <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden lg:hidden bg-blue-700 border-t border-blue-600">
             <div class="px-4 py-4 space-y-2">
+                <!-- User Info Banner (Mobile) -->
+                <div class="mb-4 bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                            {{ user.empleado.nombre|first|upper }}{{ user.empleado.apellido|first|upper }}
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-white font-bold text-base">{{ user.empleado.nombre }} {{ user.empleado.apellido }}</p>
+                            <p class="text-blue-100 text-xs">
+                                {% if user.empleado.es_manager %}Manager{% else %}Empleado{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
                 <a href="{% url 'gestion:dashboard' %}"
                     class="block px-4 py-3 rounded-lg text-white hover:bg-white/20 transition">
                     <i class="fas fa-home mr-2"></i> Dashboard
@@ -246,6 +339,10 @@
                     <i class="fas fa-calendar-star mr-2"></i> Festivos
                 </a>
                 {% else %}
+                <a href="{% url 'gestion:solicitar_mis_vacaciones' %}"
+                    class="block px-4 py-3 rounded-lg text-white hover:bg-white/20 transition">
+                    <i class="fas fa-paper-plane mr-2"></i> Solicitar Vacaciones
+                </a>
                 <a href="{% url 'gestion:historial_personal' %}"
                     class="block px-4 py-3 rounded-lg text-white hover:bg-white/20 transition">
                     <i class="fas fa-clock-rotate-left mr-2"></i> Mi Historial
@@ -259,27 +356,30 @@
                     <i class="fas fa-calendar-days mr-2"></i> Calendario
                 </a>
                 {% endif %}
+
             </div>
         </div>
     </nav>
     {% endif %}
 
-    <!-- Messages/Alerts -->
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-24 right-6 z-[9999] space-y-3 max-w-sm"></div>
+
+
+    <!-- Messages/Alerts (Convertidos a Toast) -->
     {% if messages %}
-    <div class="max-w-7xl mx-auto px-6 mt-4">
+    <div id="django-messages" style="display: none;">
         {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} animate-slide-in-down">
-            <div class="flex items-start gap-3">
-                <i
-                    class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} text-lg"></i>
-                <div class="flex-1">{{ message }}</div>
-                <button onclick="this.parentElement.parentElement.remove()" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
+        <span class="django-message" data-type="{{ message.tags }}">{{ message }}</span>
         {% endfor %}
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.django-message').forEach(m => {
+                showToast(m.textContent, m.dataset.type);
+            });
+        });
+    </script>
     {% endif %}
 
     <!-- Page Content -->
@@ -380,7 +480,144 @@
             });
         }
 
-        // Auto-cerrar alertas después de 5 segundos
+// ==========================================
+        // TOAST NOTIFICATIONS SYSTEM
+        // ==========================================
+        function showToast(message, type = 'info', title = null, duration = 5000) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            // Iconos según el tipo
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+
+            // Títulos según el tipo
+            const titles = {
+                success: 'Éxito',
+                error: 'Error',
+                warning: 'Advertencia',
+                info: 'Información'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <i class="fas ${icons[type] || icons.info}"></i>
+                </div>
+                <div class="toast-content">
+                    ${title ? `<div class="toast-title">${title}</div>` : ''}
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="removeToast(this.parentElement)">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="toast-progress" style="animation-duration: ${duration}ms"></div>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto-eliminar después del duration
+            setTimeout(() => {
+                removeToast(toast);
+            }, duration);
+        }
+
+        function removeToast(toast) {
+            if (!toast || toast.classList.contains('removing')) return;
+            
+            toast.classList.add('removing');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.parentElement.removeChild(toast);
+                }
+            }, 300);
+        }
+
+        // ==========================================
+        // SKELETON LOADER UTILITIES
+        // ==========================================
+        function showSkeleton(container, count = 1, type = 'card') {
+            if (!container) return;
+            
+            const skeletons = [];
+            for (let i = 0; i < count; i++) {
+                const skeleton = document.createElement('div');
+                skeleton.className = `skeleton skeleton-${type}`;
+                container.appendChild(skeleton);
+                skeletons.push(skeleton);
+            }
+            
+            return skeletons;
+        }
+
+        function hideSkeleton(container, content) {
+            if (!container) return;
+            
+            // Eliminar skeletons
+            const skeletons = container.querySelectorAll('.skeleton');
+            skeletons.forEach(skeleton => skeleton.remove());
+            
+            // Agregar contenido con animación
+            if (content) {
+                content.style.opacity = '0';
+                container.appendChild(content);
+                setTimeout(() => {
+                    content.style.opacity = '1';
+                    content.style.transition = 'opacity 0.3s ease';
+                }, 50);
+            }
+        }
+
+        // ==========================================
+        // LOADING STATES PARA FORMULARIOS Y BOTONES
+        // ==========================================
+        function setButtonLoading(button, loading = true) {
+            if (!button) return;
+            
+            if (loading) {
+                button.disabled = true;
+                const originalContent = button.innerHTML;
+                button.dataset.originalContent = originalContent;
+                button.innerHTML = `
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    ${button.textContent.trim()}
+                `;
+                button.classList.add('opacity-75', 'cursor-not-allowed');
+            } else {
+                button.disabled = false;
+                button.innerHTML = button.dataset.originalContent || button.innerHTML;
+                button.classList.remove('opacity-75', 'cursor-not-allowed');
+                delete button.dataset.originalContent;
+            }
+        }
+
+        function setFormLoading(form, loading = true) {
+            if (!form) return;
+            
+            const buttons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+            buttons.forEach(button => setButtonLoading(button, loading));
+            
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                if (loading) {
+                    input.disabled = true;
+                    input.classList.add('opacity-50');
+                } else {
+                    input.disabled = false;
+                    input.classList.remove('opacity-50');
+                }
+            });
+        }
+
+        // ==========================================
+        // AUTO-CERRAR ALERTAS ANTIGUAS (MIGRACIÓN)
+        // ==========================================
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(alert => {
@@ -392,6 +629,184 @@
 
     {% block extra_js %}{% endblock %}
 
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                // Registramos el SW desde la raíz para tener scope global
+                navigator.serviceWorker.register("/sw.js")
+                .then(function(registration) {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+    <!-- PWA Install Logic & Debugging -->
+    <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+
+        // 1. Ocultar botón inicialmente y si ya está instalado
+        if (installBtn) {
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                installBtn.style.display = 'none';
+            } else {
+                installBtn.classList.add('hidden');
+            }
+        }
+
+        // 2. Escuchar evento de instalación
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Si ya estamos en modo standalone, no mostramos nada
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                return;
+            }
+
+            console.log('👍 PWA Install Prompt fired!');
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Habilitar botón solo si no está instalado
+            if (installBtn) {
+                installBtn.classList.remove('hidden');
+                installBtn.classList.add('flex', 'bg-emerald-500', 'hover:bg-emerald-600');
+                installBtn.querySelector('span').textContent = '📲 Instalar App';
+            }
+        });
+
+        // 3. Lógica del botón con Instrucciones de Ayuda
+        if (installBtn) {
+            // Solo mostramos ayuda si pasan 5 segundos y sabemos que es un Android/iOS que SOPORTA PWA pero no disparó el evento
+            setTimeout(() => {
+                const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                if (isMobile && !deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
+                    console.log("Showing manual install helper");
+                    // No mostramos el botón gigante, sino un toast informativo opcional
+                }
+            }, 5000);
+
+            installBtn.addEventListener('click', async () => {
+                if (!deferredPrompt) {
+                     // Instrucciones manuales para cuando falta HTTPS
+                     alert("⚠️ Android requiere HTTPS para la instalación automática.\n\nPara instalar manualmente:\n1. Toca los 3 puntos del navegador (arriba a la derecha).\n2. Busca la opción 'Agregar a la pantalla principal' o 'Instalar aplicación'.");
+                     return;
+                }
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User choice: ${outcome}`);
+                deferredPrompt = null;
+            });
+        }
+
+        // 4. Confirmación de instalación
+        window.addEventListener('appinstalled', () => {
+            showToast('¡Aplicación instalada con éxito!', 'success');
+            if (installBtn) installBtn.style.display = 'none';
+        });
+
+        // 5. Debug de Service Worker y Contexto Seguro
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then((registration) => {
+                console.log('SW Ready:', registration);
+            });
+        } else {
+             // Diagnóstico preciso
+             if (!window.isSecureContext) {
+                 showToast('PWA Desactivado: Falta conexión segura (HTTPS)', 'error');
+                 console.warn("⚠️ PWA requiere HTTPS o Localhost. Chrome deshabilita Service Workers en redes inseguras (192.168...). Configura chrome://flags o usa Ngrok.");
+                 
+                 // Actualizar botón para reflejar esto
+                 if(installBtn) {
+                     installBtn.querySelector('span').textContent = 'Error: Sitio No Seguro';
+                     installBtn.classList.remove('opacity-50', 'bg-blue-400', 'bg-emerald-500');
+                     installBtn.classList.add('bg-red-500', 'hover:bg-red-600', 'cursor-help');
+                     
+                     installBtn.onclick = () => alert("⛔ ERROR DE SEGURIDAD\n\nAndroid bloquea las funciones de App porque estás usando 'http' (inseguro) en lugar de 'https' (candado).\n\nSOLUCIÓN:\n1. Usa 'chrome://flags' en el celular para permitir esta IP.\n2. O usa un túnel seguro como Ngrok.");
+                 }
+             } else {
+                 showToast('Tu navegador es muy antiguo para PWA', 'error');
+             }
+        }
+
+        // ==========================================
+        // REAL-TIME NOTIFICATIONS POLLING
+        // ==========================================
+        let lastNotifId = {{ notif_last_id|default:0 }};
+        const POLL_INTERVAL = 5000; // 5 segundos para una respuesta más rápida
+
+        function checkNotificaciones() {
+            fetch(`/gestion/api/check_notificaciones/?last_id=${lastNotifId}`)
+            .then(response => response.json())
+            .then(data => {
+                // 1. Actualizar el distintivo (badge) de la campana
+                const badgeContainer = document.getElementById('notif-badge-container');
+                if (badgeContainer) {
+                    if (data.unread_count > 0) {
+                        badgeContainer.innerHTML = `
+                            <span class="absolute top-0 right-0 flex h-4 w-4">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span id="notif-count-badge" class="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[10px] items-center justify-center font-bold">
+                                    ${data.unread_count}
+                                </span>
+                            </span>
+                        `;
+                    } else {
+                        badgeContainer.innerHTML = '';
+                    }
+                }
+
+                // 2. Actualizar texto del dropdown
+                const dropdownSub = document.getElementById('notif-dropdown-subtitle');
+                if (dropdownSub) {
+                    dropdownSub.textContent = `${data.unread_count} nuevas`;
+                }
+
+                // 3. Si hay notificaciones nuevas en este poll, mostrar Toasts
+                if (data.nuevas && data.nuevas.length > 0) {
+                    data.nuevas.forEach(n => {
+                        showToast(n.mensaje, 'info', n.titulo);
+                        
+                        // Sonido sutil de notificación (opcional, habilitado por defecto)
+                        try {
+                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                            audio.volume = 0.3;
+                            audio.play();
+                        } catch(e) { /* Bloqueado por el navegador hasta interacción */ }
+                    });
+                    lastNotifId = data.last_id;
+                }
+
+                // 4. Actualizar contadores del DASHBOARD si están presentes
+                // Buscar contadores de "Solicitudes Pendientes" (para managers)
+                const pendingCounters = document.querySelectorAll('.counter[data-target]');
+                pendingCounters.forEach(counter => {
+                    // Si el elemento parece ser el de solicitudes pendientes
+                    const parentCard = counter.closest('.kpi-card');
+                    if (parentCard && (parentCard.innerHTML.includes('Solicitudes Pendientes') || parentCard.innerHTML.includes('revisión rápida'))) {
+                        const targetVal = parseInt(counter.getAttribute('data-target'));
+                        if (targetVal !== data.tareas_pendientes) {
+                            counter.innerText = data.tareas_pendientes;
+                            counter.setAttribute('data-target', data.tareas_pendientes);
+                            // Pequeño efecto visual de actualización
+                            counter.classList.add('text-blue-600', 'scale-110');
+                            setTimeout(() => counter.classList.remove('text-blue-600', 'scale-110'), 2000);
+                        }
+                    }
+                });
+            })
+            .catch(err => console.debug("Polling silent error:", err));
+        }
+
+        // Iniciar el ciclo de vida de tiempo real
+        if (document.getElementById('notif-badge-container')) {
+            // Esperar un poco antes del primer check
+            setTimeout(checkNotificaciones, 2000);
+            setInterval(checkNotificaciones, POLL_INTERVAL);
+        }
+
+    </script>
 </body>
 
 </html>

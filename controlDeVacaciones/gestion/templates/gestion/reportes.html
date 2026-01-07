@@ -64,18 +64,46 @@
         </div>
     </div>
 
-    <!-- Filtros -->
+<!-- Filtros Mejorados con Búsqueda Instantánea -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <i class="fas fa-filter text-blue-600"></i>
-            Filtros
+            Filtros Inteligentes
         </h2>
-        <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        
+        <!-- Búsqueda Instantánea -->
+        <div class="mb-6">
+            <div class="relative max-w-md">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text" 
+                       id="busqueda-instantanea" 
+                       class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all"
+                       placeholder="Buscar por nombre, apellido o legajo..."
+                       autocomplete="off">
+                <div class="absolute inset-y-0 right-0 pr-4 flex items-center">
+                    <div id="search-loading" class="hidden">
+                        <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                    </div>
+                    <div id="search-results-count" class="text-sm text-gray-500"></div>
+                </div>
+            </div>
+            
+            <!-- Autocomplete Dropdown -->
+            <div id="autocomplete-dropdown" class="absolute z-50 w-full max-w-md mt-2 bg-white rounded-lg shadow-lg border border-gray-200 hidden">
+                <div class="max-h-64 overflow-y-auto">
+                    <div id="autocomplete-results" class="py-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <form method="GET" id="filtros-form" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div class="md:col-span-5 relative">
                 <label for="id_empleado" class="block text-xs font-medium text-gray-700 mb-1 ml-1 uppercase tracking-wide">Empleado</label>
                 <div class="relative">
                     <select id="id_empleado" name="empleado" 
-                        class="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block appearance-none">
+                        class="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all">
                         <option value="Todos" {% if not empleado_id_seleccionado or empleado_id_seleccionado == 'Todos' %}selected{% endif %}>
                             Todos los Empleados
                         </option>
@@ -95,7 +123,7 @@
                 <label for="id_estado" class="block text-xs font-medium text-gray-700 mb-1 ml-1 uppercase tracking-wide">Estado</label>
                 <div class="relative">
                     <select id="id_estado" name="estado"
-                        class="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block appearance-none">
+                        class="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all">
                         <option value="Todos" {% if not estado_seleccionado or estado_seleccionado == 'Todos' %}selected{% endif %}>
                             Todos los Estados
                         </option>
@@ -111,11 +139,16 @@
                 </div>
             </div>
 
-            <div class="md:col-span-3">
+            <div class="md:col-span-3 flex gap-2">
                 <button type="submit"
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2">
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2">
                     <i class="fas fa-search text-sm"></i>
                     Aplicar
+                </button>
+                <button type="button" id="limpiar-filtros"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 px-4 rounded-lg transition-all duration-200"
+                    title="Limpiar filtros">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
         </form>
@@ -259,7 +292,210 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Intercept action buttons
+        // ==========================================
+        // BÚSQUEDA INSTANTÁNEA CON AUTOCOMPLETE
+        // ==========================================
+        const busquedaInput = document.getElementById('busqueda-instantanea');
+        const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+        const autocompleteResults = document.getElementById('autocomplete-results');
+        const searchLoading = document.getElementById('search-loading');
+        const searchResultsCount = document.getElementById('search-results-count');
+        const tablaSolicitudes = document.querySelector('table tbody');
+        
+        // Datos de empleados para autocomplete
+        const empleadosData = [
+            {% for emp in empleados_disponibles %}
+            {
+                id: {{ emp.id }},
+                nombre: '{{ emp.nombre }}',
+                apellido: '{{ emp.apellido }}',
+                legajo: '{{ emp.legajo }}',
+                nombreCompleto: '{{ emp.apellido }}, {{ emp.nombre }} ({{ emp.legajo }})'
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Datos de solicitudes para búsqueda
+        const solicitudesData = [
+            {% for sol in solicitudes %}
+            {
+                id: {{ sol.id }},
+                empleado: '{{ sol.empleado.apellido }}, {{ sol.empleado.nombre }}',
+                empleadoId: {{ sol.empleado.id }},
+                legajo: '{{ sol.empleado.legajo }}',
+                fechaInicio: '{{ sol.fecha_inicio|date:"d/m/Y" }}',
+                fechaFin: '{{ sol.fecha_fin|date:"d/m/Y" }}',
+                dias: {{ sol.dias_solicitados }},
+                estado: '{{ sol.estado }}'
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        let searchTimeout;
+        
+        // Función de búsqueda
+        function performSearch(query) {
+            if (query.length < 2) {
+                hideAutocomplete();
+                restoreAllRows();
+                updateSearchResultsCount(solicitudesData.length);
+                return;
+            }
+            
+            showSearchLoading();
+            
+            // Simular búsqueda con timeout
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const resultados = buscarSolicitudes(query);
+                mostrarAutocomplete(resultados, query);
+                filtrarTabla(resultados);
+                hideSearchLoading();
+                updateSearchResultsCount(resultados.length);
+            }, 300);
+        }
+        
+        // Buscar solicitudes
+        function buscarSolicitudes(query) {
+            const queryLower = query.toLowerCase();
+            return solicitudesData.filter(sol => 
+                sol.empleado.toLowerCase().includes(queryLower) ||
+                sol.legajo.toLowerCase().includes(queryLower) ||
+                sol.fechaInicio.includes(query) ||
+                sol.fechaFin.includes(query) ||
+                sol.estado.toLowerCase().includes(queryLower)
+            );
+        }
+        
+        // Mostrar autocomplete
+        function mostrarAutocomplete(resultados, query) {
+            if (resultados.length === 0) {
+                autocompleteResults.innerHTML = `
+                    <div class="px-4 py-3 text-sm text-gray-500 text-center">
+                        <i class="fas fa-search mr-2"></i>
+                        No se encontraron resultados para "${query}"
+                    </div>
+                `;
+            } else {
+                autocompleteResults.innerHTML = resultados.slice(0, 5).map(sol => `
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors autocomplete-item" 
+                         data-empleado-id="${sol.empleadoId}">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">${sol.empleado}</div>
+                                <div class="text-sm text-gray-500">
+                                    <i class="fas fa-calendar mr-1"></i>${sol.fechaInicio} - ${sol.fechaFin}
+                                    <span class="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded">${sol.dias} días</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                    ${sol.estado === 'Aprobada' ? 'bg-green-100 text-green-800' : 
+                                      sol.estado === 'Pendiente' ? 'bg-amber-100 text-amber-800' : 
+                                      'bg-red-100 text-red-800'}">
+                                    ${sol.estado}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Agregar event listeners
+                document.querySelectorAll('.autocomplete-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const empleadoId = this.dataset.empleadoId;
+                        document.getElementById('id_empleado').value = empleadoId;
+                        document.getElementById('filtros-form').submit();
+                    });
+                });
+            }
+            
+            autocompleteDropdown.classList.remove('hidden');
+        }
+        
+        // Filtrar tabla
+        function filtrarTabla(resultados) {
+            const resultadoIds = new Set(resultados.map(sol => sol.id));
+            const filas = tablaSolicitudes.querySelectorAll('tr');
+            
+            filas.forEach(fila => {
+                if (fila.querySelector('td[colspan="7"]')) {
+                    // Fila de "no resultados"
+                    fila.style.display = resultados.length === 0 ? '' : 'none';
+                    return;
+                }
+                
+                const enlaceAccion = fila.querySelector('form[action*="aprobar_rechazar"]');
+                if (enlaceAccion) {
+                    const solicitudId = parseInt(enlaceAccion.action.match(/solicitud_id=(\d+)/)[1]);
+                    fila.style.display = resultadoIds.has(solicitudId) ? '' : 'none';
+                }
+            });
+        }
+        
+        // Restaurar todas las filas
+        function restoreAllRows() {
+            const filas = tablaSolicitudes.querySelectorAll('tr');
+            filas.forEach(fila => {
+                fila.style.display = '';
+            });
+        }
+        
+        // Event listeners
+        busquedaInput.addEventListener('input', function() {
+            performSearch(this.value);
+        });
+        
+        busquedaInput.addEventListener('focus', function() {
+            if (this.value.length >= 2) {
+                performSearch(this.value);
+            }
+        });
+        
+        // Cerrar autocomplete al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!busquedaInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
+                hideAutocomplete();
+            }
+        });
+        
+        // Funciones utilitarias
+        function showSearchLoading() {
+            searchLoading.classList.remove('hidden');
+        }
+        
+        function hideSearchLoading() {
+            searchLoading.classList.add('hidden');
+        }
+        
+        function hideAutocomplete() {
+            autocompleteDropdown.classList.add('hidden');
+        }
+        
+        function updateSearchResultsCount(count) {
+            searchResultsCount.textContent = count > 0 ? `${count} resultados` : '';
+        }
+        
+        // ==========================================
+        // LIMPIAR FILTROS
+        // ==========================================
+        document.getElementById('limpiar-filtros').addEventListener('click', function() {
+            document.getElementById('id_empleado').value = 'Todos';
+            document.getElementById('id_estado').value = 'Todos';
+            busquedaInput.value = '';
+            restoreAllRows();
+            updateSearchResultsCount(solicitudesData.length);
+            hideAutocomplete();
+            
+            // Mostrar toast de confirmación
+            if (typeof showToast === 'function') {
+                showToast('Filtros limpiados correctamente', 'success');
+            }
+        });
+        
+        // ==========================================
+        // INTERCEPT ACTION BUTTONS
+        // ==========================================
         const actionButtons = document.querySelectorAll('button[type="submit"][name="accion"]');
         
         actionButtons.forEach(button => {

@@ -35,6 +35,7 @@ class Empleado(models.Model):
     jornada_estandar = models.DecimalField(max_digits=4, decimal_places=2, default=8.0) # Horas por día
     # Manager que aprueba sus solicitudes (opcional)
     manager_aprobador = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados_a_cargo')
+    primer_login = models.BooleanField(default=True, help_text="Indica si el usuario debe cambiar su contraseña en el próximo inicio de sesión.")
 
     def antiguedad_en_anos(self, fecha_referencia=None):
         """
@@ -188,6 +189,46 @@ class RegistroVacaciones(models.Model):
 
     def dias_restantes_para_inicio(self):
         return (self.fecha_inicio - date.today()).days
+
+class ConfiguracionEmail(models.Model):
+    # SMTP Settings
+    email_host = models.CharField(max_length=200, default='mail.tudominio.com', help_text="Ej: mail.tudominio.com o cXXXX.ferozo.com")
+    email_port = models.IntegerField(default=587)
+    email_use_tls = models.BooleanField(default=True, verbose_name="Usar STARTTLS (Puerto 587)")
+    email_use_ssl = models.BooleanField(default=False, verbose_name="Usar SSL Directo (Puerto 465)")
+    email_host_user = models.CharField(max_length=200, help_text="Ej: info@tudominio.com")
+
+    email_host_password = models.CharField(max_length=200, help_text="Contraseña de la cuenta de correo")
+
+    
+    # Destinatarios
+    emails_notificacion = models.TextField(help_text="Emails separados por coma (,) que recibirán avisos de nuevas solicitudes.")
+    
+    # Activar/Desactivar
+    activo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"SMTP: {self.email_host_user}"
+
+class Notificacion(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notificaciones')
+    titulo = models.CharField(max_length=150)
+    mensaje = models.TextField()
+    leida = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    url = models.CharField(max_length=255, blank=True, null=True)
+    solicitud = models.ForeignKey('RegistroVacaciones', on_delete=models.CASCADE, null=True, blank=True, related_name='notificaciones_sistema')
+
+    class Meta:
+
+        verbose_name = "Notificación"
+        verbose_name_plural = "Notificaciones"
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f"{self.titulo} - {self.usuario.username}"
+
+
 
 # NOTA: Asegúrate de ejecutar 'python manage.py makemigrations' y luego 
 # 'python manage.py migrate' después de guardar este archivo.

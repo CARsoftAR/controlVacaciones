@@ -92,3 +92,103 @@ body {
     opacity: 0;
     visibility: hidden;
 }
+
+/* =========================================
+   TOAST NOTIFICATIONS
+   ========================================= */
+.toast {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: white;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #f1f5f9;
+    position: relative;
+    overflow: hidden;
+    animation: toast-slide-in 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+    min-width: 320px;
+}
+
+.dark .toast {
+    background: #1e293b;
+    border-color: #334155;
+    color: white;
+}
+
+.toast.removing {
+    animation: toast-slide-out 0.4s ease forwards;
+}
+
+@keyframes toast-slide-in {
+    from { opacity: 0; transform: translateX(100%) scale(0.9); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes toast-slide-out {
+    to { opacity: 0; transform: translateX(100%) scale(0.9); }
+}
+
+.toast-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.toast-success .toast-icon { background: #dcfce7; color: #16a34a; }
+.toast-error .toast-icon { background: #fee2e2; color: #dc2626; }
+.toast-warning .toast-icon { background: #fef3c7; color: #d97706; }
+.toast-info .toast-icon { background: #e0f2fe; color: #0284c7; }
+
+.toast-content {
+    flex-grow: 1;
+    padding-right: 1.5rem;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    margin-bottom: 0.25rem;
+}
+
+.toast-message {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.dark .toast-message { color: #94a3b8; }
+
+.toast-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.toast-close:hover { color: #64748b; }
+
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: currentColor;
+    opacity: 0.3;
+    animation: toast-progress linear forwards;
+}
+
+@keyframes toast-progress {
+    from { width: 100%; }
+    to { width: 0%; }
+}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f1f5f9; }
+        .wrapper { width: 100%; padding: 40px 0; background-color: #f1f5f9; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
+        .header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 40px 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; }
+        .content { padding: 40px 30px; text-align: center; }
+        .icon { font-size: 48px; margin-bottom: 20px; }
+        .message { font-size: 18px; color: #334155; margin-bottom: 30px; font-weight: 600; }
+        .footer { background-color: #f8fafc; color: #94a3b8; padding: 30px; text-align: center; font-size: 13px; border-top: 1px solid #f1f5f9; }
+        .details-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px; text-align: left; }
+        .detail-item { margin-bottom: 10px; font-size: 14px; }
+        .detail-label { font-weight: 700; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div class="header">
+                <h1>Prueba de Configuración</h1>
+            </div>
+            <div class="content">
+                <div class="icon">✅</div>
+                <p class="message">¡Conexión Exitosa!</p>
+                <p style="color: #64748b; margin-bottom: 30px;">
+                    Este es un mensaje de prueba enviado desde tu sistema de Control de Vacaciones ABBAMAT. Si estás viendo esto, significa que el servidor de correo está perfectamente configurado.
+                </p>
+
+                <div class="details-box">
+                    <div class="detail-item"><span class="detail-label">Servidor SMTP:</span> {{ config.email_host|default:"Configuración Manual" }}</div>
+                    <div class="detail-item"><span class="detail-label">Fecha y Hora:</span> {{ timestamp|date:"d/m/Y H:i" }}</div>
+                    <div class="detail-item"><span class="detail-label">Destinatario:</span> {{ request.user.email }}</div>
+                </div>
+                
+                <p style="font-size: 14px; color: #94a3b8;">
+                    Ahora ya puedes empezar a recibir notificaciones reales de solicitudes de empleados.
+                </p>
+            </div>
+            <div class="footer">
+                &copy; {% now "Y" %} <strong>ABBAMAT</strong> - Departamento de Producción & RRHH
+            </div>
+        </div>
+    </div>
+</body>
+</html>

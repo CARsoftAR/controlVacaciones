@@ -13,8 +13,8 @@ BASE_DIR = Path(__file__).resolve().parent
 # ==============================================================================
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['*']
-CSRF_TRUSTED_ORIGINS = ['https://*.railway.app']
+ALLOWED_HOSTS = ['192.168.88.77','127.0.0.1','*']
+CSRF_TRUSTED_ORIGINS = ['https://*.railway.app', 'https://*.ngrok-free.app', 'https://*.ngrok-free.dev']
 
 # ==============================================================================
 # APLICACIONES (APPS)
@@ -42,6 +42,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware', 
     'django.contrib.messages.middleware.MessageMiddleware', 
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'gestion.middleware.PrimerLoginMiddleware',
 ]
 
 # Ajusta el nombre de tu proyecto principal según tu estructura real
@@ -64,7 +65,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'gestion.context_processors.notificaciones_context',
             ],
+
         },
     },
 ]
@@ -164,3 +167,17 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Tipo de campo para claves primarias (PK)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ==============================================================================
+# CONFIGURACIÓN DE CORREO ELECTRÓNICO (EMAIL)
+# ==============================================================================
+
+# Cambiar a 'django.core.mail.backends.smtp.EmailBackend' para producción
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'tu-email@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'tu-password-de-aplicacion')
+DEFAULT_FROM_EMAIL = f"Sistema de Vacaciones ABBAMAT <{EMAIL_HOST_USER}>"
+SERVER_EMAIL = EMAIL_HOST_USER

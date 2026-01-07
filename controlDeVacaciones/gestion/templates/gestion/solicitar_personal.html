@@ -1,0 +1,127 @@
+{% extends 'gestion/base.html' %}
+
+{% block title %}Solicitar Mis Vacaciones{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4">
+    
+    <!-- Encabezado simplificado -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Pedir Vacaciones</h1>
+        <p class="text-gray-600 dark:text-gray-400">Selecciona los días que deseas tomar de descanso</p>
+    </div>
+
+    <!-- Card Principal -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-6">
+        
+        <!-- Info Saldo -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center">
+            <p class="text-sm opacity-90 mb-1">Días Disponibles</p>
+            <div class="text-5xl font-extrabold flex items-center justify-center gap-2">
+                <i class="fas fa-calendar-check text-3xl opacity-75"></i>
+                {{ saldo_disponible }}
+            </div>
+            <p class="text-xs opacity-75 mt-2">Ciclo {{ current_year }}</p>
+        </div>
+
+        <form method="POST" class="p-6 space-y-6">
+            {% csrf_token %}
+
+            <!-- Fecha Inicio -->
+            <div>
+                <label for="fecha_inicio" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <i class="fas fa-plane-departure text-blue-500 mr-2"></i>Desde (Primer día de vacaciones)
+                </label>
+                <input type="date" name="fecha_inicio" id="fecha_inicio" required
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg"
+                    min="{{ hoy }}">
+            </div>
+
+            <!-- Fecha Fin -->
+            <div>
+                <label for="fecha_fin" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <i class="fas fa-plane-arrival text-green-500 mr-2"></i>Hasta (Último día de vacaciones)
+                </label>
+                <input type="date" name="fecha_fin" id="fecha_fin" required
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg"
+                    min="{{ hoy }}">
+            </div>
+
+            <!-- Calculadora de días (Info visual) -->
+            <div id="calculo-info" class="hidden bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600 dark:text-gray-300 font-medium">Total días a solicitar:</span>
+                    <span class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="total-dias">0</span>
+                </div>
+                <p id="aviso-saldo" class="text-xs text-red-500 mt-2 hidden font-bold">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>Excede tus días disponibles
+                </p>
+            </div>
+
+            <!-- Botón Grande -->
+            <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transform transition hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-lg">
+                <i class="fas fa-paper-plane"></i>
+                Confirmar Solicitud
+            </button>
+        </form>
+    </div>
+
+    <!-- Botón Volver -->
+    <a href="{% url 'gestion:dashboard' %}" class="block text-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition p-2">
+        Cancelar
+    </a>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const fechaInicio = document.getElementById('fecha_inicio');
+    const fechaFin = document.getElementById('fecha_fin');
+    const infoBox = document.getElementById('calculo-info');
+    const totalDiasSpan = document.getElementById('total-dias');
+    const avisoSaldo = document.getElementById('aviso-saldo');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    // Convertir el saldo de django template a numero JS (puede ser "10.0" o "N/A")
+    // Simple parse, asumiendo formato numero.
+    const saldoMax = parseFloat("{{ saldo_disponible }}") || 0;
+
+    function calcularDias() {
+        if(fechaInicio.value && fechaFin.value) {
+            const start = new Date(fechaInicio.value);
+            const end = new Date(fechaFin.value);
+            
+            if(end >= start) {
+                // calculo simple de diferencia en días + 1
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
+                
+                totalDiasSpan.textContent = diffDays;
+                infoBox.classList.remove('hidden');
+
+                if (diffDays > saldoMax) {
+                    avisoSaldo.classList.remove('hidden');
+                    submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    submitBtn.disabled = true;
+                } else {
+                    avisoSaldo.classList.add('hidden');
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    submitBtn.disabled = false;
+                }
+            } else {
+                infoBox.classList.add('hidden');
+            }
+        }
+    }
+
+    fechaInicio.addEventListener('change', () => {
+        // Restringir que la fecha de fin no sea anterior a la de inicio
+        fechaFin.min = fechaInicio.value; 
+        calcularDias();
+    });
+    
+    fechaFin.addEventListener('change', calcularDias);
+</script>
+{% endblock %}

@@ -10,377 +10,567 @@
 
     {% if es_manager_dashboard %}
     {# ============================================ #}
-    {# DASHBOARD DE MANAGER - KPIs del Equipo #}
+    {# DASHBOARD DE MANAGER #}
     {# ============================================ #}
 
-    <!-- Welcome Section -->
-    <div class="mb-10">
-        <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
-            ¡Bienvenido, {{ empleado.nombre }}! 👋
-        </h1>
-        <p class="text-xl text-gray-600 dark:text-gray-300">
-            Panel de gestión del equipo - Resumen general
-        </p>
-    </div>
-
-    <!-- Team KPI Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-
-        <!-- Total Empleados -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-blue-500 hover:shadow-xl transition-shadow relative group"
-             data-tooltip="Total de personal activo">
-            <div class="flex items-center justify-between mb-6">
-                <div class="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-users text-white text-3xl"></i>
+    <!-- 
+       SECCIÓN PERSONAL PARA MANAGERS EN MOVIL (Nuevo, cumple requerimiento "Solo mostrar dias y pedir") 
+       Visible solo en móviles/pantallas pequeñas.
+    -->
+    <div class="lg:hidden block mb-12 border-b border-gray-200 dark:border-gray-700 pb-8">
+        <!-- Banner de Usuario Móvil -->
+        <div class="mb-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 shadow-lg">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-2xl shadow-lg border-2 border-white/30">
+                    {{ empleado.nombre|first|upper }}{{ empleado.apellido|first|upper }}
+                </div>
+                <div class="flex-1">
+                    <p class="text-white/80 text-sm font-medium">Sesión activa</p>
+                    <h2 class="text-white font-bold text-xl">{{ empleado.nombre }} {{ empleado.apellido }}</h2>
+                    <p class="text-white/90 text-xs mt-1">
+                        <i class="fas fa-briefcase mr-1"></i>
+                        {% if empleado.es_manager %}Manager{% else %}Empleado{% endif %}
+                    </p>
                 </div>
             </div>
-            <div class="text-5xl font-black text-gray-900 dark:text-white mb-3">{{ total_empleados }}</div>
-            <div class="text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Empleados Totales</div>
-            <div class="text-sm text-gray-500 dark:text-gray-500 mt-3">En el sistema</div>
         </div>
-
-        <!-- Solicitudes Pendientes -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-orange-500 hover:shadow-xl transition-shadow relative group"
-             data-tooltip="Vacaciones por aprobar">
-            <div class="flex items-center justify-between mb-6">
-                <div class="w-16 h-16 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-clock text-white text-3xl"></i>
-                </div>
-            </div>
-            <div class="text-5xl font-black text-gray-900 dark:text-white mb-3">{{ solicitudes_pendientes }}</div>
-            <div class="text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Solicitudes Pendientes</div>
-            <div class="text-sm text-gray-500 dark:text-gray-500 mt-3">Requieren aprobación</div>
+        
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6 px-2">Mi Resumen Personal</h2>
+        
+        <div class="grid grid-cols-1 gap-6">
+             <!-- Días Disponibles (Personal) -->
+             <div class="kpi-card bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-purple-500 relative overflow-hidden group">
+                 <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full -mr-16 -mt-16"></div>
+                 <div class="relative z-10 flex items-center justify-between">
+                     <div>
+                         <div class="text-5xl font-black text-gray-900 dark:text-white mb-2">{{ saldo_disponible_personal }}</div>
+                         <div class="text-lg font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Mis Días Disponibles</div>
+                         <div class="text-sm text-gray-500 mt-1">Ciclo {{ current_year }}</div>
+                     </div>
+                     <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg">
+                         <i class="fas fa-user-clock text-white text-3xl"></i>
+                     </div>
+                 </div>
+             </div>
+ 
+             <!-- Botón Gigante de Acción (Igual que empleados) -->
+             <div>
+                  <a href="{% url 'gestion:solicitar_mis_vacaciones' %}" 
+                     class="group relative w-full h-[140px] bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-xl flex items-center justify-center overflow-hidden active:scale-95 transition-all">
+                     
+                     <div class="absolute inset-0 bg-white/10 group-hover:bg-transparent transition-colors"></div>
+                     <div class="absolute -right-6 -bottom-6 opacity-20 transform rotate-12">
+                         <i class="fas fa-paper-plane text-8xl text-white"></i>
+                     </div>
+                     
+                     <div class="relative z-10 flex flex-col items-center">
+                         <i class="fas fa-plus-circle text-4xl text-white mb-2 shadow-sm"></i>
+                         <span class="text-2xl font-black text-white tracking-wide shadow-sm">PEDIR MIS VACACIONES</span>
+                     </div>
+                  </a>
+             </div>
         </div>
+     </div>
 
-        <!-- Días Disponibles del Equipo -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-green-500 hover:shadow-xl transition-shadow relative group"
-             data-tooltip="Suma total de saldos del equipo">
-            <div class="flex items-center justify-between mb-6">
-                <div class="w-16 h-16 rounded-2xl bg-green-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-calendar-check text-white text-3xl"></i>
-                </div>
-            </div>
-            <div class="text-5xl font-black text-gray-900 dark:text-white mb-3">{{ total_dias_equipo }}</div>
-            <div class="text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Días del Equipo</div>
-            <div class="text-sm text-gray-500 dark:text-gray-500 mt-3">Total disponibles</div>
-        </div>
 
-        <!-- Tus Días Personales -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-purple-500 hover:shadow-xl transition-shadow relative group"
-             data-tooltip="Tu saldo personal asignado">
-            <div class="flex items-center justify-between mb-6">
-                <div class="w-16 h-16 rounded-2xl bg-purple-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-user-check text-white text-3xl"></i>
-                </div>
-            </div>
-            <div class="text-5xl font-black text-gray-900 dark:text-white mb-3">{{ saldo_disponible_personal }}</div>
-            <div class="text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Tus Días</div>
-            <div class="text-sm text-gray-500 dark:text-gray-500 mt-3">Disponibles personalmente</div>
-        </div>
-
-    </div>
-
-    <!-- Two Column Layout -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-
-        <!-- Vacaciones Próximas -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                    <i class="fas fa-calendar-days text-purple-600 dark:text-purple-400 text-2xl"></i>
-                </div>
-                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Vacaciones Próximas</h3>
-            </div>
-
-            {% if vacaciones_proximas %}
-            <div class="space-y-4">
-                {% for vacacion in vacaciones_proximas %}
-                <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
-                    <div class="flex items-center gap-4">
-                        <div
-                            class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-bold">
-                            {{ vacacion.empleado.nombre|first }}{{ vacacion.empleado.apellido|first }}
-                        </div>
-                        <div>
-                            <p class="font-semibold text-gray-900 dark:text-white">{{ vacacion.empleado.nombre }} {{ vacacion.empleado.apellido }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-300">{{ vacacion.fecha_inicio|date:"d/m/Y" }} - {{ vacacion.fecha_fin|date:"d/m/Y" }}</p>
+    <!-- 
+        SECCIÓN DE GESTIÓN DE EQUIPO (Manager Dashboard Original)
+        OCULTA en móviles por defecto para cumplir "Solo mostrar días y pedir",
+        pero mostrada en Desktop.
+        Se puede agregar un toggle si fuera necesario, pero la request fue "solo mostrarme..."
+    -->
+    <div class="hidden lg:block">
+        
+        <!-- Welcome Section con animación -->
+        <div class="mb-10 animate-fade-in">
+            <div class="bg-gradient-to-r from-purple-600 via-blue-600 to-blue-700 rounded-3xl p-8 text-white shadow-2xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-5xl font-extrabold mb-4 animate-slide-in-left">
+                            ¡Bienvenido, {{ empleado.nombre }}! 👋
+                        </h1>
+                        <p class="text-xl opacity-90 animate-slide-in-left animation-delay-200">
+                            Panel de gestión del equipo - Resumen general en tiempo real
+                        </p>
+                    </div>
+                    <div class="hidden lg:block">
+                        <div class="text-right">
+                            <div class="text-6xl font-bold animate-pulse">{{ current_year }}</div>
+                            <div class="text-sm opacity-75">Ciclo Actual</div>
                         </div>
                     </div>
-                    <span class="text-sm font-bold text-purple-600 dark:text-purple-400">{{ vacacion.dias_solicitados }} días</span>
                 </div>
-                {% endfor %}
             </div>
-            {% else %}
-            <p class="text-gray-500 dark:text-gray-400 text-center py-8">No hay vacaciones programadas en los próximos 30 días</p>
-            {% endif %}
         </div>
 
-        <!-- Solicitudes Recientes -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                    <i class="fas fa-list-check text-orange-600 dark:text-orange-400 text-2xl"></i>
+        <!-- Team KPI Cards con animaciones y progreso -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+
+            <!-- Total Empleados -->
+            <div class="kpi-card bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-blue-500 hover:shadow-2xl transition-all duration-300 relative group overflow-hidden"
+                data-tooltip="Total de personal activo en el sistema">
+                <!-- ... (contenido original) ... -->
+                <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <i class="fas fa-users text-white text-3xl"></i>
+                        </div>
+                        <div class="text-3xl font-bold text-blue-500 opacity-20"><i class="fas fa-chart-line"></i></div>
+                    </div>
+                    <div class="text-5xl font-black text-gray-900 dark:text-white mb-3 counter" data-target="{{ total_empleados }}">0</div>
+                    <div class="text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Empleados Totales</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-500 mt-3 flex items-center gap-2">
+                        <i class="fas fa-circle text-green-500 text-xs animate-pulse"></i> Personal activo
+                    </div>
                 </div>
-                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Solicitudes Pendientes</h3>
             </div>
 
-            {% if ultimas_solicitudes %}
-            <div class="space-y-4">
-                {% for solicitud in ultimas_solicitudes %}
-                <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
-                    <div class="flex items-center gap-4">
-                        <div
-                            class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-400 flex items-center justify-center text-white font-bold">
-                            {{ solicitud.empleado.nombre|first }}{{ solicitud.empleado.apellido|first }}
+            <!-- Solicitudes Pendientes -->
+            <div class="kpi-card bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-orange-500 hover:shadow-2xl transition-all duration-300 relative group overflow-hidden"
+                data-tooltip="Vacaciones pendientes de aprobación">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <i class="fas fa-clock text-white text-3xl animate-pulse"></i>
                         </div>
-                        <div>
-                            <p class="font-semibold text-gray-900 dark:text-white">{{ solicitud.empleado.nombre }} {{ solicitud.empleado.apellido }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-300">{{ solicitud.fecha_inicio|date:"d/m/Y" }} - {{ solicitud.fecha_fin|date:"d/m/Y" }}</p>
-                        </div>
+                        <div class="text-3xl font-bold text-orange-500 opacity-20"><i class="fas fa-hourglass-half"></i></div>
                     </div>
-                    <span class="inline-block bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 text-xs font-bold px-3 py-1 rounded-full">
-                        Pendiente
+                    <div class="text-5xl font-black text-gray-900 dark:text-white mb-3 counter" data-target="{{ solicitudes_pendientes }}">0</div>
+                    <div class="text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Solicitudes Pendientes</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-500 mt-3 flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-orange-500 text-xs animate-bounce"></i> Requieren aprobación
+                    </div>
+                </div>
+            </div>
+
+            <!-- Días Disponibles del Equipo -->
+            <div class="kpi-card bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-green-500 hover:shadow-2xl transition-all duration-300 relative group overflow-hidden"
+                data-tooltip="Suma total de saldos disponibles del equipo">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <i class="fas fa-calendar-check text-white text-3xl"></i>
+                        </div>
+                        <div class="text-3xl font-bold text-green-500 opacity-20"><i class="fas fa-chart-pie"></i></div>
+                    </div>
+                    <div class="text-5xl font-black text-gray-900 dark:text-white mb-3 counter" data-target="{{ total_dias_equipo }}">0</div>
+                    <div class="text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Días del Equipo</div>
+                     <div class="text-sm text-gray-500 dark:text-gray-500 mt-3 flex items-center gap-2">
+                        <i class="fas fa-check-circle text-green-500 text-xs"></i> Total disponibles
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tus Días Personales (Desktop Version) -->
+            <div class="kpi-card bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-l-4 border-purple-500 hover:shadow-2xl transition-all duration-300 relative group overflow-hidden"
+                data-tooltip="Tu saldo personal de vacaciones">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+                <div class="relative z-10 text-center">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <i class="fas fa-user-check text-white text-3xl"></i>
+                        </div>
+                        <a href="{% url 'gestion:solicitar_mis_vacaciones' %}" 
+                           class="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold px-3 py-1 rounded-full hover:bg-purple-200 transition-colors">
+                            PEDIR LAS MÍAS
+                        </a>
+                    </div>
+                    <div class="text-5xl font-black text-gray-900 dark:text-white mb-2 counter" data-target="{{ saldo_disponible_personal }}">0</div>
+                    <div class="text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Tus Días</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Gráficos Interactivos (Solo escritorio) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <!-- Gráfico de Distribución por Departamento -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                        <i class="fas fa-chart-pie text-blue-600 dark:text-blue-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Distribución por Departamento</h3>
+                </div>
+                <div class="relative h-80">
+                    <canvas id="departamentoChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Gráfico de Estado de Solicitudes -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                        <i class="fas fa-chart-bar text-green-600 dark:text-green-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Estado de Solicitudes</h3>
+                </div>
+                <div class="relative h-80">
+                    <canvas id="estadoChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column Layout con mejoras -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+
+            <!-- Vacaciones Próximas con animaciones -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                        <i class="fas fa-calendar-days text-purple-600 dark:text-purple-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Vacaciones Próximas</h3>
+                    <span class="bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 text-xs font-bold px-2 py-1 rounded-full">
+                        Próximos 30 días
                     </span>
                 </div>
-                {% endfor %}
+
+                {% if vacaciones_proximas %}
+                <div class="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+                    {% for vacacion in vacaciones_proximas %}
+                    <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover:scale-[1.02] hover:shadow-md">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">
+                                {{ vacacion.empleado.nombre|first }}{{ vacacion.empleado.apellido|first }}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 dark:text-white">{{ vacacion.empleado.nombre }} {{ vacacion.empleado.apellido }}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-300">{{ vacacion.fecha_inicio|date:"d/m/Y" }} - {{ vacacion.fecha_fin|date:"d/m/Y" }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-sm font-bold text-purple-600 dark:text-purple-400">{{ vacacion.dias_solicitados }} días</span>
+                            <div class="text-xs text-gray-500 mt-1">
+                                {% widthratio vacacion.dias_restantes_para_inicio 1 1 %} días
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-12">
+                    <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                        <i class="fas fa-calendar-xmark text-gray-400 text-3xl"></i>
+                    </div>
+                    <p class="text-gray-500 dark:text-gray-400">No hay vacaciones programadas en los próximos 30 días</p>
+                </div>
+                {% endif %}
             </div>
-            <div class="mt-6">
-                <a href="{% url 'gestion:historial_global' %}"
-                    class="block text-center bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition">
-                    Ver Todas las Solicitudes
-                </a>
+
+            <!-- Solicitudes Recientes con mejoras -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                        <i class="fas fa-list-check text-orange-600 dark:text-orange-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Solicitudes Pendientes</h3>
+                    {% if ultimas_solicitudes %}
+                    <span class="bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                        {{ ultimas_solicitudes|length }} activas
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if ultimas_solicitudes %}
+                <div class="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+                    {% for solicitud in ultimas_solicitudes %}
+                    <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 group hover:scale-[1.02] hover:shadow-md">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-400 flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">
+                                {{ solicitud.empleado.nombre|first }}{{ solicitud.empleado.apellido|first }}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 dark:text-white">{{ solicitud.empleado.nombre }} {{ solicitud.empleado.apellido }}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-300">{{ solicitud.fecha_inicio|date:"d/m/Y" }} - {{ solicitud.fecha_fin|date:"d/m/Y" }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-bold text-orange-600 dark:text-orange-400">{{ solicitud.dias_solicitados }} días</span>
+                            <span class="inline-block bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                                Pendiente
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-6 flex gap-3">
+                    <a href="{% url 'gestion:historial_global' %}"
+                        class="flex-1 block text-center bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105">
+                        <i class="fas fa-eye mr-2"></i>Ver Todas
+                    </a>
+                    <a href="{% url 'gestion:solicitar_vacaciones' %}"
+                        class="flex-1 block text-center bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105">
+                        <i class="fas fa-plus mr-2"></i>Nueva Solicitud
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center py-12">
+                    <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-500 text-3xl"></i>
+                    </div>
+                    <p class="text-gray-500 dark:text-gray-400 mb-4">¡No hay solicitudes pendientes!</p>
+                    <a href="{% url 'gestion:solicitar_vacaciones' %}"
+                        class="inline-block bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg transition transform hover:scale-105">
+                        <i class="fas fa-plus mr-2"></i>Crear Solicitud
+                    </a>
+                </div>
+                {% endif %}
             </div>
-            {% else %}
-            <p class="text-gray-500 dark:text-gray-400 text-center py-8">No hay solicitudes pendientes</p>
-            {% endif %}
         </div>
-
     </div>
+    
+    <!-- Quick Actions con animaciones mejoradas (Mantenido visible, necesario para managers) -->
+    <div class="mb-12 hidden lg:block">
 
-    <!-- Quick Actions -->
-    <div class="mb-12">
-        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Acciones Rápidas</h2>
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8 animate-slide-in-left">Acciones Rápidas</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
             <a href="{% url 'gestion:solicitar_vacaciones' %}"
-                class="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-blue-300">
+                class="action-card group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-blue-300 transform hover:scale-105 hover:-translate-y-1">
                 <div class="flex items-center gap-6">
-                    <div
-                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
                         <i class="fas fa-calendar-plus text-white text-3xl"></i>
                     </div>
                     <div class="flex-1">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Nueva Solicitud</h3>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">Nueva Solicitud</h3>
                         <p class="text-sm text-gray-600 dark:text-gray-400">Registrar vacaciones</p>
+                        <div class="mt-2 text-xs text-blue-500 font-semibold">
+                            <i class="fas fa-arrow-right mr-1"></i>Acción rápida
+                        </div>
                     </div>
                 </div>
             </a>
 
             <a href="{% url 'gestion:calendario_global' %}"
-                class="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-purple-300">
+                class="action-card group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-purple-300 transform hover:scale-105 hover:-translate-y-1">
                 <div class="flex items-center gap-6">
-                    <div
-                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
                         <i class="fas fa-calendar-days text-white text-3xl"></i>
                     </div>
                     <div class="flex-1">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Calendario</h3>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 transition-colors">Calendario</h3>
                         <p class="text-sm text-gray-600 dark:text-gray-400">Planificación del equipo</p>
+                        <div class="mt-2 text-xs text-purple-500 font-semibold">
+                            <i class="fas fa-chart-gantt mr-1"></i>Vista global
+                        </div>
                     </div>
                 </div>
             </a>
 
             <a href="{% url 'gestion:gestion_empleados' %}"
-                class="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-green-300">
+                class="action-card group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-green-300 transform hover:scale-105 hover:-translate-y-1">
                 <div class="flex items-center gap-6">
-                    <div
-                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
                         <i class="fas fa-users text-white text-3xl"></i>
                     </div>
                     <div class="flex-1">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Empleados</h3>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-green-600 transition-colors">Empleados</h3>
                         <p class="text-sm text-gray-600 dark:text-gray-400">Administrar personal</p>
+                        <div class="mt-2 text-xs text-green-500 font-semibold">
+                            <i class="fas fa-user-cog mr-1"></i>Gestión
+                        </div>
                     </div>
                 </div>
             </a>
+
         </div>
     </div>
 
     {% else %}
     {# ============================================ #}
-    {# DASHBOARD DE EMPLEADO - Datos Personales #}
+    {# DASHBOARD DE EMPLEADO - Datos Personales CON MEJORAS #}
     {# ============================================ #}
 
-    <!-- Welcome Section -->
-    <div class="mb-10">
-        <h1 class="text-5xl font-extrabold text-gray-900 mb-4">
-            ¡Bienvenido, {{ empleado.nombre }}! 👋
-        </h1>
-        <p class="text-xl text-gray-600">
-            Resumen de tu información de vacaciones
-        </p>
+    <!-- Welcome Section con animación -->
+    <div class="mb-10 animate-fade-in">
+        <div class="bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 rounded-3xl p-8 text-white shadow-2xl">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <!-- Banner de Usuario Móvil (Solo móvil) -->
+                    <div class="lg:hidden mb-4 flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-lg shadow-lg border-2 border-white/30">
+                            {{ empleado.nombre|first|upper }}{{ empleado.apellido|first|upper }}
+                        </div>
+                        <div>
+                            <p class="text-white/80 text-xs font-medium">Sesión activa</p>
+                            <p class="text-white font-bold text-sm">{{ empleado.nombre }} {{ empleado.apellido }}</p>
+                        </div>
+                    </div>
+                    
+                    <h1 class="text-5xl font-extrabold mb-4 animate-slide-in-left">
+                        ¡Bienvenido, {{ empleado.nombre }}! 👋
+                    </h1>
+                    <p class="text-xl opacity-90 animate-slide-in-left animation-delay-200">
+                        Resumen de tu información de vacaciones
+                    </p>
+                </div>
+                <div class="hidden lg:block">
+                    <div class="text-right">
+                        <div class="text-6xl font-bold animate-pulse">{{ current_year }}</div>
+                        <div class="text-sm opacity-75">Ciclo Actual</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- KPI Cards - Simplified -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+    <!-- Sección Simplificada para Móviles (y Desktop) -->
+    
+    <!-- KPI Principal: Días Disponibles -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
 
         <!-- Días Disponibles -->
-        <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
-            <div class="flex items-center justify-between mb-6">
-                <div class="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-calendar-check text-white text-3xl"></i>
+        <div class="kpi-card bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border-l-8 border-blue-500 hover:shadow-2xl transition-all duration-300 relative group overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform duration-700"></div>
+            <div class="relative z-10 flex flex-col items-start">
+                <div class="flex items-center justify-between w-full mb-4">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-500">
+                        <i class="fas fa-calendar-check text-white text-2xl"></i>
+                    </div>
+                    <div class="text-xs font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-full">
+                        CICLO {{ current_year }}
+                    </div>
                 </div>
+                <div class="text-6xl font-black text-gray-900 dark:text-white mb-1 counter" data-target="{{ saldo_disponible }}">0</div>
+                <div class="text-base font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Días Disponibles</div>
             </div>
-            <div class="text-5xl font-black text-gray-900 mb-3">{{ saldo_disponible }}</div>
-            <div class="text-base font-semibold text-gray-600 uppercase tracking-wide">Días Disponibles</div>
-            <div class="text-sm text-gray-500 mt-3">Ciclo {% now "Y" %}</div>
         </div>
 
+        <div class="flex flex-col justify-center">
+             <a href="{% url 'gestion:solicitar_mis_vacaciones' %}" 
+                class="group relative w-full h-full min-h-[150px] bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl shadow-2xl flex items-center justify-center overflow-hidden hover:scale-[1.02] active:scale-95 transition-all duration-300">
+                
+                <div class="absolute inset-0 bg-white/10 group-hover:bg-transparent transition-colors"></div>
+                <div class="absolute -right-8 -bottom-8 opacity-20 transform rotate-12 group-hover:scale-125 group-hover:rotate-45 transition-transform duration-700">
+                    <i class="fas fa-paper-plane text-[8rem] text-white"></i>
+                </div>
+                
+                <div class="relative z-10 flex flex-col items-center">
+                    <div class="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-inner">
+                        <i class="fas fa-plus text-2xl text-white"></i>
+                    </div>
+                    <span class="text-2xl font-black text-white tracking-tighter shadow-sm">PEDIR VACACIONES</span>
+                    <span class="text-white/80 text-sm mt-1 font-medium tracking-wide">Click para comenzar</span>
+                </div>
+             </a>
+        </div>
+    </div>
+
+    <!-- Otros KPIs (Ocultos en móvil, visibles en Desktop) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12 hidden md:grid">
+
         <!-- Antigüedad -->
-        <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
-            <div class="flex items-center justify-between mb-6">
-                <div class="w-16 h-16 rounded-2xl bg-green-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-briefcase text-white text-3xl"></i>
+        <div class="kpi-card bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-l-4 border-green-500">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                    <i class="fas fa-briefcase text-xl"></i>
+                </div>
+                <div>
+                     <div class="text-2xl font-bold text-gray-900 dark:text-white">
+                        <span class="counter" data-target="{% widthratio empleado.antiguedad_en_anos 1 1 %}">0</span> años
+                     </div>
+                     <div class="text-xs text-gray-500 uppercase">Antigüedad</div>
                 </div>
             </div>
-            <div class="text-5xl font-black text-gray-900 mb-3">
-                {% widthratio empleado.antiguedad_en_anos 1 1 %}
-            </div>
-            <div class="text-base font-semibold text-gray-600 uppercase tracking-wide">Años de Antigüedad</div>
-            <div class="text-sm text-gray-500 mt-3">Desde {{ empleado.fecha_ingreso|date:"d/m/Y" }}</div>
         </div>
 
         <!-- Departamento -->
-        <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-purple-500 hover:shadow-xl transition-shadow">
-            <div class="flex items-center justify-between mb-6">
-                <div class="w-16 h-16 rounded-2xl bg-purple-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-building text-white text-3xl"></i>
+        <div class="kpi-card bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-l-4 border-purple-500">
+             <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+                    <i class="fas fa-building text-xl"></i>
+                </div>
+                <div>
+                     <div class="text-xl font-bold text-gray-900 dark:text-white truncate max-w-[150px]">
+                        {{ empleado.departamento.nombre|default:"-" }}
+                     </div>
+                     <div class="text-xs text-gray-500 uppercase">Departamento</div>
                 </div>
             </div>
-            <div class="text-3xl font-black text-gray-900 mb-3 truncate">
-                {{ empleado.departamento.nombre|default:"Sin asignar" }}
-            </div>
-            <div class="text-base font-semibold text-gray-600 uppercase tracking-wide">Departamento</div>
-            <div class="text-sm text-gray-500 mt-3">Legajo: {{ empleado.legajo }}</div>
         </div>
 
         <!-- Estado -->
-        <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-orange-500 hover:shadow-xl transition-shadow">
-            <div class="flex items-center justify-between mb-6">
-                <div class="w-16 h-16 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-user-check text-white text-3xl"></i>
+        <div class="kpi-card bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-l-4 border-orange-500">
+             <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
+                    <i class="fas fa-user-check text-xl"></i>
                 </div>
-            </div>
-            <div class="mb-4">
-                <span class="inline-block bg-green-100 text-green-800 text-xl font-bold px-6 py-3 rounded-full">
-                    Activo
-                </span>
-            </div>
-            <div class="text-base font-semibold text-gray-600 uppercase tracking-wide">Estado</div>
-            <div class="text-sm text-gray-500 mt-3">
-                <i class="fas fa-user"></i> Empleado
+                <div>
+                     <div class="text-xl font-bold text-gray-900 dark:text-white">Activo</div>
+                     <div class="text-xs text-gray-500 uppercase">Estado</div>
+                </div>
             </div>
         </div>
 
     </div>
 
-    <!-- Quick Actions Section -->
-    <div class="mb-12">
-        <h2 class="text-3xl font-bold text-gray-900 mb-8">Acciones Rápidas</h2>
+    <!-- Acciones Secundarias (Historial, etc.) -->
+    <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Otras Acciones</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <a href="{% url 'gestion:historial_personal' %}" class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-gray-200 dark:border-gray-700 hover:border-blue-500 transition text-center group">
+            <i class="fas fa-clock-rotate-left text-2xl text-blue-500 mb-2 group-hover:scale-110 transition-transform"></i>
+            <div class="font-bold text-gray-700 dark:text-gray-300">Mis Solicitudes</div>
+        </a>
+        
+     </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-            <a href="{% url 'gestion:historial_personal' %}"
-                class="group bg-white rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-blue-300">
-                <div class="flex items-center gap-6">
-                    <div
-                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                        <i class="fas fa-clock-rotate-left text-white text-3xl"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-xl font-bold text-gray-900 mb-2">Mi Historial</h3>
-                        <p class="text-sm text-gray-600">Solicitudes anteriores</p>
-                    </div>
-                </div>
-            </a>
-
-            <a href="{% url 'gestion:dias_disponibles' %}"
-                class="group bg-white rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-green-300">
-                <div class="flex items-center gap-6">
-                    <div
-                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                        <i class="fas fa-calendar-check text-white text-3xl"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-xl font-bold text-gray-900 mb-2">Días Disponibles</h3>
-                        <p class="text-sm text-gray-600">Consultar saldo</p>
-                    </div>
-                </div>
-            </a>
-
-            <a href="{% url 'gestion:calendario_global' %}"
-                class="group bg-white rounded-xl shadow-md hover:shadow-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-purple-300">
-                <div class="flex items-center gap-6">
-                    <div
-                        class="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                        <i class="fas fa-calendar-days text-white text-3xl"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-xl font-bold text-gray-900 mb-2">Calendario</h3>
-                        <p class="text-sm text-gray-600">Ver ausencias</p>
-                    </div>
-                </div>
-            </a>
-
-        </div>
-    </div>
-
-    <!-- Information Section -->
+    <!-- Information Section con mejoras -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        <!-- System Info -->
-        <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+        <!-- System Info con animaciones -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow">
             <div class="flex items-center gap-3 mb-6">
-                <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                    <i class="fas fa-info-circle text-blue-600 text-2xl"></i>
+                <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <i class="fas fa-info-circle text-blue-600 dark:text-blue-400 text-2xl"></i>
                 </div>
-                <h3 class="text-2xl font-bold text-gray-900">Información del Sistema</h3>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Información del Sistema</h3>
             </div>
             <div class="space-y-5">
-                <div class="flex justify-between items-center py-4 border-b border-gray-200">
-                    <span class="text-base font-semibold text-gray-700">Período de Goce</span>
-                    <span class="text-base font-bold text-gray-900">01/Oct - 30/Abr</span>
+                <div class="flex justify-between items-center py-4 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-4 transition-colors group">
+                    <span class="text-base font-semibold text-gray-700 dark:text-gray-300 group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>Período de Goce
+                    </span>
+                    <span class="text-base font-bold text-gray-900 dark:text-white bg-blue-100 dark:bg-blue-900/50 px-3 py-1 rounded-full">01/Oct - 30/Abr</span>
                 </div>
-                <div class="flex justify-between items-center py-4 border-b border-gray-200">
-                    <span class="text-base font-semibold text-gray-700">Ciclo Actual</span>
-                    <span class="text-base font-bold text-gray-900">{% now "Y" %}</span>
+                <div class="flex justify-between items-center py-4 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-4 transition-colors group">
+                    <span class="text-base font-semibold text-gray-700 dark:text-gray-300 group-hover:text-green-600 transition-colors">
+                        <i class="fas fa-calendar mr-2 text-green-500"></i>Ciclo Actual
+                    </span>
+                    <span class="text-base font-bold text-gray-900 dark:text-white bg-green-100 dark:bg-green-900/50 px-3 py-1 rounded-full">{% now "Y" %}</span>
                 </div>
-                <div class="flex justify-between items-center py-4">
-                    <span class="text-base font-semibold text-gray-700">Cálculo de Días</span>
-                    <span class="text-base font-bold text-gray-900">LCT Argentina</span>
+                <div class="flex justify-between items-center py-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-4 transition-colors group">
+                    <span class="text-base font-semibold text-gray-700 dark:text-gray-300 group-hover:text-purple-600 transition-colors">
+                        <i class="fas fa-balance-scale mr-2 text-purple-500"></i>Cálculo de Días
+                    </span>
+                    <span class="text-base font-bold text-gray-900 dark:text-white bg-purple-100 dark:bg-purple-900/50 px-3 py-1 rounded-full">LCT Argentina</span>
                 </div>
             </div>
         </div>
 
-        <!-- Quick Links -->
-        <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+        <!-- Quick Links con animaciones -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow">
             <div class="flex items-center gap-3 mb-6">
-                <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-                    <i class="fas fa-link text-purple-600 text-2xl"></i>
+                <div class="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                    <i class="fas fa-link text-purple-600 dark:text-purple-400 text-2xl"></i>
                 </div>
-                <h3 class="text-2xl font-bold text-gray-900">Enlaces Útiles</h3>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Enlaces Útiles</h3>
             </div>
             <div class="space-y-3">
                 <a href="{% url 'gestion:mi_perfil' %}"
-                    class="flex items-center gap-4 p-5 rounded-xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
-                    <i class="fas fa-user-circle text-gray-400 text-2xl"></i>
-                    <span class="text-base font-semibold text-gray-700">Mi Perfil</span>
+                    class="flex items-center gap-4 p-5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 group hover:scale-[1.02]">
+                    <i class="fas fa-user-circle text-gray-400 text-2xl group-hover:text-blue-500 transition-colors"></i>
+                    <span class="text-base font-semibold text-gray-700 dark:text-gray-300 group-hover:text-blue-600 transition-colors">Mi Perfil</span>
+                    <i class="fas fa-arrow-right text-gray-400 group-hover:text-blue-500 transition-colors ml-auto"></i>
                 </a>
                 <a href="{% url 'logout' %}"
-                    class="flex items-center gap-4 p-5 rounded-xl hover:bg-red-50 transition-all border border-transparent hover:border-red-200">
-                    <i class="fas fa-right-from-bracket text-red-400 text-2xl"></i>
-                    <span class="text-base font-semibold text-red-700">Cerrar Sesión</span>
+                    class="flex items-center gap-4 p-5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border border-transparent hover:border-red-200 dark:hover:border-red-800 group hover:scale-[1.02]">
+                    <i class="fas fa-right-from-bracket text-red-400 text-2xl group-hover:text-red-600 transition-colors"></i>
+                    <span class="text-base font-semibold text-red-700 dark:text-red-400 group-hover:text-red-600 transition-colors">Cerrar Sesión</span>
+                    <i class="fas fa-arrow-right text-red-400 group-hover:text-red-600 transition-colors ml-auto"></i>
                 </a>
             </div>
         </div>
@@ -391,4 +581,289 @@
 
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+{% if es_manager_dashboard %}
+<!-- Datos para Gráficos (Inyectados fuera del script para evitar errores de sintaxis) -->
+<div id="graph-data" style="display: none;"
+    data-depto-labels="{% for depto in departamentos_stats %}{{ depto.nombre }}{% if not forloop.last %}|{% endif %}{% endfor %}"
+    data-depto-values="{% for depto in departamentos_stats %}{{ depto.empleados }}{% if not forloop.last %}|{% endif %}{% endfor %}"
+    data-aprobadas="{{ estados_solicitudes.aprobadas|default:0 }}"
+    data-pendientes="{{ estados_solicitudes.pendientes|default:0 }}"
+    data-rechazadas="{{ estados_solicitudes.rechazadas|default:0 }}">
+</div>
+{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ==========================================
+    // ANIMACIÓN DE CONTADORES
+    // ==========================================
+    const counters = document.querySelectorAll('.counter');
+    const speed = 200; // Velocidad de animación
+
+    const animateCounter = (counter) => {
+        const target = +counter.getAttribute('data-target');
+        const increment = target / speed;
+        
+        const updateCount = () => {
+            const count = +counter.innerText;
+            
+            if (count < target) {
+                counter.innerText = Math.ceil(count + increment);
+                setTimeout(updateCount, 10);
+            } else {
+                counter.innerText = target;
+            }
+        };
+        
+        updateCount();
+    };
+
+    // Intersection Observer para animar contadores cuando sean visibles
+    const counterObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateCounter(entry.target);
+                counterObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.5 });
+
+    counters.forEach(counter => {
+        counterObserver.observe(counter);
+    });
+
+    // ==========================================
+    // GRÁFICOS INTERACTIVOS (SOLO PARA MANAGERS)
+    // ==========================================
+    const graphDataEl = document.getElementById('graph-data');
+    if (graphDataEl) {
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = '#6b7280';
+        
+        const departamentoCtx = document.getElementById('departamentoChart');
+        if (departamentoCtx) {
+            const labels = graphDataEl.dataset.deptoLabels.split('|');
+            const values = graphDataEl.dataset.deptoValues.split('|').map(Number);
+
+            new Chart(departamentoCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316'],
+                        borderWidth: 2, borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)', padding: 12, cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${context.label}: ${value} empleados (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        const estadoCtx = document.getElementById('estadoChart');
+        if (estadoCtx) {
+            new Chart(estadoCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Aprobadas', 'Pendientes', 'Rechazadas'],
+                    datasets: [{
+                        label: 'Solicitudes',
+                        data: [
+                            parseInt(graphDataEl.dataset.aprobadas),
+                            parseInt(graphDataEl.dataset.pendientes),
+                            parseInt(graphDataEl.dataset.rechazadas)
+                        ],
+                        backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+                        borderColor: ['rgb(34, 197, 94)', 'rgb(245, 158, 11)', 'rgb(239, 68, 68)'],
+                        borderWidth: 2, borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+    }
+
+    // ==========================================
+    // ANIMACIONES DE ENTRADA
+    // ==========================================
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const animationObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animate-fade-in');
+                animationObserver.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+
+    // Observar elementos para animación
+    document.querySelectorAll('.kpi-card, .action-card').forEach(el => {
+        animationObserver.observe(el);
+    });
+
+    // ==========================================
+    // EFECTOS HOVER ADICIONALES
+    // ==========================================
+    document.querySelectorAll('.kpi-card, .action-card').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-4px) scale(1.02)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+        });
+    });
+
+    // ==========================================
+    // MEJORAR PERFORMANCE DE SCROLL
+    // ==========================================
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+        if (scrollTimeout) {
+            window.cancelAnimationFrame(scrollTimeout);
+        }
+        
+        scrollTimeout = window.requestAnimationFrame(() => {
+            // Lógica de scroll optimizada
+            document.body.style.setProperty('--scroll-y', `${window.scrollY}px`);
+        });
+    });
+});
+</script>
+
+<style>
+/* ==========================================
+    ESTILOS ADICIONALES PARA ANIMACIONES
+    ========================================== */
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.animate-slide-in-left {
+    animation: slideInLeft 0.8s ease-out;
+}
+
+.animate-slide-in-right {
+    animation: slideInRight 0.8s ease-out;
+}
+
+.animation-delay-200 {
+    animation-delay: 200ms;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Dark mode scrollbar */
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: #374151;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #6b7280;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Efectos de hover mejorados */
+.kpi-card, .action-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-card:hover, .action-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+}
+
+/* Mejorar visibilidad de tooltips */
+[data-tooltip]:hover::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-8px);
+    transition: all 0.3s ease;
+}
+
+[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(8px);
+    transition: all 0.3s ease;
+}
+</style>
 {% endblock %}
