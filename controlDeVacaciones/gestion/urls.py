@@ -23,6 +23,8 @@ urlpatterns = [
     
     path('mi_perfil/', views.mi_perfil, name='mi_perfil'),
   
+    # 🌟 NUEVO: Ruta para exportar a .ics
+    path('vacacion/<int:vacacion_id>/ics/', views.exportar_notificacion_vacaciones_ics, name='exportar_notificacion_ics'),
 
     # --- Rutas de Manager/Administración ---
     
@@ -38,6 +40,9 @@ urlpatterns = [
     path('festivos/', views.gestion_festivos, name='gestion_festivos'),
     path('festivos/<int:festivo_id>/eliminar/', views.eliminar_festivo, name='eliminar_festivo'),
     path('calendario_manager/', views.calendario_manager, name='calendario_manager'),
+    path('calendario_interactivo/', views.calendario_interactivo, name='calendario_interactivo'),
+    path('api/vacaciones/listar/', views.api_vacaciones_listar, name='api_vacaciones_listar'),
+    path('api/vacaciones/mover/', views.api_vacaciones_mover, name='api_vacaciones_mover'),
     path('configurar_email/', views.configurar_email, name='configurar_email'),
     path('probar_email/', views.probar_email, name='probar_email'),
 

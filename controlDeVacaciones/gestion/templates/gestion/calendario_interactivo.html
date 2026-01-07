@@ -1,0 +1,198 @@
+{% extends 'gestion/base.html' %}
+{% load static %}
+
+{% block title %}Calendario Interactivo Premium{% endblock %}
+
+{% block content %}
+<div class="px-6 py-8">
+    
+    <!-- Encabezado -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-3">
+                <i class="fas fa-calendar-alt text-blue-500"></i>
+                Calendario Interactivo
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Gestiona las vacaciones de tu equipo visualmente. Arrastra y suelta para reagendar.</p>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <span class="text-xs font-bold uppercase text-slate-400">Referencias:</span>
+            <div class="flex items-center gap-2 px-3 py-1 bg-green-100 rounded-full">
+                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                <span class="text-xs font-bold text-green-700">Aprobada</span>
+            </div>
+            <div class="flex items-center gap-2 px-3 py-1 bg-amber-100 rounded-full">
+                <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                <span class="text-xs font-bold text-amber-700">Pendiente</span>
+            </div>
+             <div class="flex items-center gap-2 px-3 py-1 bg-pink-100 rounded-full">
+                <div class="w-3 h-3 rounded-full bg-pink-400"></div>
+                <span class="text-xs font-bold text-pink-700">Feriado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor del Calendario -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden p-6 border border-slate-200 dark:border-gray-700 h-[750px]">
+        <div id='calendar' class="h-full"></div>
+    </div>
+
+</div>
+
+<!-- FullCalendar JS CDN -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
+
+<style>
+    /* Personalización FullCalendar estilo "Moderno/Premium" */
+    
+    .fc { 
+        font-family: 'Inter', sans-serif; 
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 800 !important;
+        color: #334155;
+    }
+    .dark .fc-toolbar-title {
+        color: #f1f5f9;
+    }
+
+    .fc-button-primary {
+        background-color: #3b82f6 !important;
+        border-color: #3b82f6 !important;
+        font-weight: 600 !important;
+        text-transform: capitalize !important;
+        border-radius: 0.5rem !important;
+        padding: 0.5rem 1rem !important;
+    }
+
+    .fc-button-primary:hover {
+        background-color: #2563eb !important;
+        border-color: #2563eb !important;
+    }
+
+    .fc-day-today {
+        background-color: #eff6ff !important;
+    }
+    .dark .fc-day-today {
+        background-color: #1e3a8a !important;
+    }
+
+    .fc-event {
+        border-radius: 4px !important;
+        border: none !important;
+        padding: 2px 4px !important;
+        font-size: 0.85rem !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+    .fc-event:hover {
+        transform: scale(1.02);
+        z-index: 50;
+    }
+
+    .fc-col-header-cell {
+        background-color: #f8fafc;
+        padding: 10px 0 !important;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+    .dark .fc-col-header-cell {
+        background-color: #0f172a;
+        color: #94a3b8;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            locale: 'es',
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,listMonth'
+            },
+            navLinks: true, // clic en días para ver detalle
+            editable: true, // Habilita Drag & Drop
+            dayMaxEvents: true, // "ver más"
+            events: "{% url 'gestion:api_vacaciones_listar' %}", // Endpoint API
+
+            // Evento al soltar (Drag & Drop)
+            eventDrop: function(info) {
+                
+                // Confirmación opcional
+                /*
+                if (!confirm("¿Seguro que deseas mover estas vacaciones a " + info.event.start.toLocaleDateString() + "?")) {
+                    info.revert();
+                    return;
+                }
+                */
+
+                // Preparar datos para enviar
+                const data = {
+                    id: info.event.id,
+                    start: info.event.startStr, // ISO string
+                    end: info.event.endStr      // ISO string (fullcalendar exclusive end)
+                };
+
+                // Enviar al servidor
+                fetch("{% url 'gestion:api_vacaciones_mover' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // CSRF Token (aunque usamos @csrf_exempt para simplificar demo, mejor incluirlo)
+                        'X-CSRFToken': '{{ csrf_token }}' 
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Fecha actualizada con éxito', 'success');
+                    } else {
+                        showToast('Error: ' + data.error, 'error');
+                        info.revert(); // Volver atrás si hubo error
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error de red al actualizar.', 'error');
+                    info.revert();
+                });
+            },
+
+            // Click en evento: Mostrar detalles básicos
+            eventClick: function(info) {
+                if(info.event.display === 'background') return;
+
+                const props = info.event.extendedProps;
+                alert(
+                    "Vacaciones de: " + info.event.title + "\n" +
+                    "Departamento: " + props.departamento + "\n" +
+                    "Estado: " + props.estado + "\n" +
+                    "Motivo: " + props.detalle
+                );
+            }
+        });
+        calendar.render();
+    });
+
+    // Función Toast simple reutilizando el estilo del sistema si existe, o uno básico
+    function showToast(message, type) {
+        // Si tienes una función global showToast, úsala. Si no, alert simple por ahora.
+        // Asumimos que base.html tiene un sistema de Toasts. Intentamos usarlo.
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type); // Tu función custom
+        } else {
+            alert(message);
+        }
+    }
+</script>
+{% endblock %}

@@ -241,12 +241,14 @@
                                 <p class="text-sm text-gray-600 dark:text-gray-300">{{ vacacion.fecha_inicio|date:"d/m/Y" }} - {{ vacacion.fecha_fin|date:"d/m/Y" }}</p>
                             </div>
                         </div>
+
                         <div class="text-right">
                             <span class="text-sm font-bold text-purple-600 dark:text-purple-400">{{ vacacion.dias_solicitados }} días</span>
                             <div class="text-xs text-gray-500 mt-1">
                                 {% widthratio vacacion.dias_restantes_para_inicio 1 1 %} días
                             </div>
                         </div>
+
                     </div>
                     {% endfor %}
                 </div>

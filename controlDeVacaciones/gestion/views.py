@@ -2286,17 +2286,50 @@ def exportar_notificacion_vacaciones_pdf(request, empleado_id, vacacion_id):
     # Configuración de página
     pdf = canvas.Canvas(response, pagesize=A4)
     width, height = A4
-    top_y = height - 50  # Margen superior inicial
+    top_y = height - 90 # Generamos espacio adecuado desde el borde superior
+
+    # --- LOGO ---
+    logo_path = os.path.join(str(settings.BASE_DIR.parent), 'gestion', 'imagenes', 'logo', 'logo.png')
+    
+    if not os.path.exists(logo_path):
+         logo_path = os.path.join(str(settings.BASE_DIR.parent), 'gestion', 'imagenes', 'logo', 'logo.jpg')
+
+    logo_width = 110
+    logo_margin_left = 60 # 2.1cm aprox, alejado del borde
+    
+    # Ajuste fino: Alineación matemática exacta a la línea base
+    logo_y_position = top_y 
+
+    if os.path.exists(logo_path):
+        try:
+            pdf.drawImage(logo_path, logo_margin_left, logo_y_position, width=logo_width, preserveAspectRatio=True, mask='auto', anchor='sw') 
+        except Exception as e:
+            print(f"Error cargando logo PDF: {e}")
 
     # --- TÍTULO ---
     pdf.setFont("Helvetica-Bold", 16)
     title = "NOTIFICACION DE VACACIONES"
     title_width = pdf.stringWidth(title, "Helvetica-Bold", 16)
-    pdf.drawString((width - title_width) / 2, top_y, title)
     
-    # Línea debajo del título
-    pdf.setLineWidth(1)
-    pdf.line(50, top_y - 10, width - 50, top_y - 10)
+    # CENTRADO INTELIGENTE
+    start_available_x = logo_margin_left + logo_width + 20 # Espacio tras el logo
+    end_available_x = width - 50
+    available_width = end_available_x - start_available_x
+    
+    title_x = start_available_x + (available_width - title_width) / 2
+    
+    pdf.drawString(title_x, top_y, title)
+    
+    # LÍNEA SEPARADORA (Más fina y gris)
+    pdf.setLineWidth(0.5) 
+    pdf.setStrokeColorRGB(0.3, 0.3, 0.3) # Gris oscuro profesional
+    
+    # Línea un poco más separada del texto (top_y - 12)
+    pdf.line(50, top_y - 12, width - 50, top_y - 12)
+    
+    # Restaurar color negro para textos siguientes
+    pdf.setStrokeColorRGB(0, 0, 0)
+    pdf.setFillColorRGB(0, 0, 0)
 
     # --- CAMPOS DEL FORMULARIO ---
     current_y = top_y - 50
@@ -2691,3 +2724,229 @@ def api_check_notificaciones(request):
     })
 
 
+
+@login_required
+def exportar_notificacion_vacaciones_ics(request, vacacion_id):
+    """
+    Genera un archivo .ics (iCalendar) para que el empleado pueda agendar
+    sus vacaciones aprobadas en Outlook, Google Calendar, etc.
+    """
+    vacacion = get_object_or_404(RegistroVacaciones, pk=vacacion_id)
+    
+    # Verificar permisos (solo el propio empleado o su manager/admin)
+    es_propio = hasattr(request.user, 'empleado') and vacacion.empleado == request.user.empleado
+    es_manager = hasattr(request.user, 'empleado') and request.user.empleado.es_manager
+    es_admin = request.user.is_superuser
+    
+    if not (es_propio or es_manager or es_admin):
+        messages.error(request, "No tienes permiso para descargar este calendario.")
+        return redirect('gestion:dashboard')
+
+    # Si no está aprobada, mostrar al menos un warning, pero permitir descargar 
+    # (A veces quieren agendar el "hold" antes de la aprobación final)
+    status_suffix = ""
+    if vacacion.estado == RegistroVacaciones.ESTADO_PENDIENTE:
+        status_suffix = " (Pendiente)"
+    elif vacacion.estado == RegistroVacaciones.ESTADO_RECHAZADA:
+        status_suffix = " (RECHAZADA)"
+    
+    # Datos del evento
+    summary = f"Vacaciones - {vacacion.empleado.nombre} {vacacion.empleado.apellido}{status_suffix}"
+    description = f"Vacaciones solicitadas en sistema ABBAMAT.\\nEstado: {vacacion.estado}\\nDías: {vacacion.dias_solicitados}"
+    
+    # Fechas: ICS usa formato YYYYMMDD
+    # fecha_inicio es el día que empieza.
+    # fecha_fin es INCLUSIVE, pero en ICS DTEND es EXCLUSIVE para eventos de día completo.
+    # Por lo tanto, debemos sumar 1 día a la fecha de fin.
+    dtstart = vacacion.fecha_inicio.strftime('%Y%m%d')
+    dtend = (vacacion.fecha_fin + timedelta(days=1)).strftime('%Y%m%d')
+    
+    # UID único para el evento
+    uid = f"vacacion-{vacacion.id}-{vacacion.fecha_solicitud.strftime('%Y%m%d')}@abbamat.sistema"
+    
+    # Timestamp actual requerida por el estándar
+    dtstamp = datetime.now().strftime('%Y%m%dT%H%M%SZ')
+
+    # Contenido del archivo .ics (Formato estándar RFC 5545)
+    ics_content = f"""BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ABBAMAT//Sistema Gestion Vacaciones//ES
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:{uid}
+DTSTAMP:{dtstamp}
+DTSTART;VALUE=DATE:{dtstart}
+DTEND;VALUE=DATE:{dtend}
+SUMMARY:{summary}
+DESCRIPTION:{description}
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR"""
+
+    # Limpiar saltos de línea y asegurar CRLF (retorno de carro + salto de línea) estándar de ICS
+    # Python strings son \n, ICS prefiere \r\n, pero muchos clientes aceptan \n. 
+    # Lo haremos bien:
+    ics_content = ics_content.replace('\\n', '\\r\\n')
+
+    response = HttpResponse(ics_content, content_type='text/calendar')
+    response['Content-Disposition'] = f'attachment; filename="vacaciones_{vacacion.fecha_inicio}.ics"'
+    
+    return response
+
+# IMPORTANT: CSRF Exempt for Drag & Drop API ease, but in prod use CSRF token in fetch headers.
+from django.views.decorators.csrf import csrf_exempt
+
+@login_required
+@user_passes_test(is_manager)
+def calendario_interactivo(request):
+    """
+    Renderiza la vista principal del Calendario Interactivo con FullCalendar.
+    """
+    context = {
+        'titulo': "Planificador Interactivo",
+    }
+    return render(request, 'gestion/calendario_interactivo.html', context)
+
+
+@login_required
+def api_vacaciones_listar(request):
+    """
+    API JSON que devuelve todas las vacaciones para FullCalendar.
+    Managers ven todo. Empleados ven solo lo suyo (si tuvieran acceso).
+    """
+    from django.db.models import Q
+    start = request.GET.get('start') # Formato ISO: 2024-01-01
+    end = request.GET.get('end')     # Formato ISO
+    
+    # Filtro base por fechas (si se envían)
+    query = Q()
+    if start and end:
+        # Vacaciones que se solapen con el rango visible
+        # (Start < Fin_Vacacion) AND (End > Inicio_Vacacion)
+        query &= Q(fecha_fin__gte=start) & Q(fecha_inicio__lte=end)
+    
+    # Filtro de permisos
+    if not request.user.is_superuser:
+        if hasattr(request.user, 'empleado') and request.user.empleado.es_manager:
+            # Manager: Ve su equipo + a sí mismo
+            # (Simplificación: Ver todo para planificar mejor, o solo equipo)
+            # Para "Interactive Drag & Drop" global, vamos a permitir ver TODO si es manager,
+            # para evitar choques con otros departamentos.
+            pass 
+        else:
+            # Empleado normal: Solo ve lo suyo (aunque esta vista suele ser de manager)
+            # Si se le da acceso a empleados, filtrar aquí.
+            if hasattr(request.user, 'empleado'):
+                query &= Q(empleado=request.user.empleado)
+            else:
+                return JsonResponse([], safe=False)
+
+    vacaciones = RegistroVacaciones.objects.filter(query).select_related('empleado', 'empleado__departamento')
+    
+    eventos = []
+    for vac in vacaciones:
+        color = '#3b82f6' # Azul (Default)
+        if vac.estado == RegistroVacaciones.ESTADO_APROBADA:
+            color = '#10b981' # Verde Esmeralda
+        elif vac.estado == RegistroVacaciones.ESTADO_PENDIENTE:
+            color = '#f59e0b' # Ambar
+        elif vac.estado == RegistroVacaciones.ESTADO_RECHAZADA:
+            color = '#ef4444' # Rojo (no se suelen mostrar, pero por si acaso)
+            continue # Mejor no mostrar rechazadas para no ensuciar
+        elif vac.estado == RegistroVacaciones.ESTADO_CANCELADA:
+             continue
+
+        # FullCalendar espera fecha fin EXCLUSIVA (+1 día)
+        end_date_fc = vac.fecha_fin + timedelta(days=1)
+        
+        titulo = f"{vac.empleado.nombre} {vac.empleado.apellido}"
+        if vac.empleado.departamento:
+             titulo += f" ({vac.empleado.departamento.nombre[:3]})"
+
+        eventos.append({
+            'id': vac.id,
+            'title': titulo,
+            'start': vac.fecha_inicio.isoformat(),
+            'end': end_date_fc.isoformat(),
+            'color': color,
+            'extendedProps': {
+                'estado': vac.estado,
+                'empleado_id': vac.empleado.id,
+                'departamento': vac.empleado.departamento.nombre if vac.empleado.departamento else 'Gral',
+                'detalle': vac.razon or "Sin motivo"
+            },
+            # Bloquear edición si no es manager o si ya pasó (opcional)
+            'editable': True # Permitir drag & drop
+        })
+        
+    # Agregar Feriados como eventos de fondo o bloqueados
+    festivos = DiasFestivos.objects.filter(fecha__range=[start, end]) if (start and end) else DiasFestivos.objects.all()
+    
+    for fest in festivos:
+        eventos.append({
+            'id': f"fest-{fest.id}",
+            'title': f"🌴 {fest.descripcion}",
+            'start': fest.fecha.isoformat(),
+            'allDay': True,
+            'display': 'background', # Mostrar como fondo
+            'backgroundColor': '#ffe4e6', # Rosado suave
+            'editable': False
+        })
+
+    return JsonResponse(eventos, safe=False)
+
+
+@csrf_exempt
+@login_required
+@user_passes_test(is_manager)
+def api_vacaciones_mover(request):
+    """
+    API para actualizar fechas vía Drag & Drop.
+    """
+    if request.method == 'POST':
+        import json
+        try:
+            data = json.loads(request.body)
+            vacacion_id = data.get('id')
+            new_start = data.get('start') # "2024-01-01"
+            new_end = data.get('end')     # "2024-01-10" (Exclusive en FC)
+            
+            if not vacacion_id or not new_start:
+                 return JsonResponse({'success': False, 'error': 'Datos incompletos'})
+
+            registro = RegistroVacaciones.objects.get(pk=vacacion_id)
+            
+            # Parsear fechas
+            fecha_inicio_dt = datetime.fromisoformat(new_start).date()
+            
+            # Ajustar fecha fin: FC envía exclusive, Django guarda inclusive.
+            if new_end:
+                 fecha_fin_dt = datetime.fromisoformat(new_end).date() - timedelta(days=1)
+            else:
+                 # Si es drop en el mismo día sin resize, start=end (1 día)
+                 fecha_fin_dt = fecha_inicio_dt
+
+            # Validaciones básicas
+            if fecha_inicio_dt > fecha_fin_dt:
+                return JsonResponse({'success': False, 'error': 'Fecha fin menor a inicio'})
+
+            # NO permitir mover si ya está rechazada/cancelada
+            if registro.estado in [RegistroVacaciones.ESTADO_RECHAZADA, RegistroVacaciones.ESTADO_CANCELADA]:
+                 return JsonResponse({'success': False, 'error': 'No se pueden mover solicitudes canceladas/rechazadas'})
+            
+            # UPDATE
+            registro.fecha_inicio = fecha_inicio_dt
+            registro.fecha_fin = fecha_fin_dt
+            # Recalcular días solicitados (método save lo hace)
+            registro.save()
+            
+            return JsonResponse({'success': True, 'msg': 'Fechas actualizadas correctamente'})
+
+        except RegistroVacaciones.DoesNotExist:
+             return JsonResponse({'success': False, 'error': 'Registro no encontrado'})
+        except Exception as e:
+             return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})

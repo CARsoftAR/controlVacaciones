@@ -487,6 +487,9 @@
         <span class="django-message" data-type="{{ message.tags }}">{{ message }}</span>
         {% endfor %}
     </div>
+    <!-- Confetti JS -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.django-message').forEach(m => {
@@ -494,9 +497,57 @@
                 const text = m.textContent.trim();
                 if (text) {
                     showToast(text, type);
+
+                    // EFECTO CONFETTI: Si el mensaje indica aprobación exitosa
+                    if (type.includes('success') && text.includes('APROBADAS')) {
+                        triggerConfetti();
+                    }
                 }
             });
         });
+
+        function triggerConfetti() {
+            // 1. Explosión Central Inmediata
+            confetti({
+                particleCount: 150,
+                spread: 100,
+                origin: { y: 0.6 },
+                colors: ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'],
+                scalar: 1.2,
+                zIndex: 99999
+            });
+
+            // 2. Cañones Laterales Continuos (durante 3 segundos)
+            var duration = 3 * 1000;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                // Cañón Izquierdo
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'],
+                    scalar: 1.2,
+                    zIndex: 99999
+                });
+                // Cañón Derecho
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'],
+                    scalar: 1.2,
+                    zIndex: 99999
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
     </script>
     {% endif %}
 
