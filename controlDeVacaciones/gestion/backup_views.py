@@ -126,14 +126,21 @@ def _ejecutar_backup_code():
     found_root = current
     
     for _ in range(5):
-        # Si esta carpeta tiene .git o manage.py y requirements.txt, es un buen candidato
-        if os.path.exists(os.path.join(current, '.git')):
+        # Indicadores fuertes de raíz de proyecto
+        is_root = (
+            os.path.exists(os.path.join(current, '.git')) or 
+            os.path.exists(os.path.join(current, 'requirements.txt')) or 
+            os.path.exists(os.path.join(current, 'Dockerfile'))
+        )
+        
+        if is_root:
             found_root = current
             break
-        if os.path.exists(os.path.join(current, 'manage.py')) and os.path.exists(os.path.join(current, 'requirements.txt')):
-            found_root = current
-            # Seguimos buscando por si .git está un nivel más arriba
             
+        # Si tiene manage.py, es un candidato (backend django), pero seguimos buscando la raíz real
+        if os.path.exists(os.path.join(current, 'manage.py')):
+             found_root = current
+             
         parent = os.path.dirname(current)
         if parent == current:
             break
