@@ -11,6 +11,7 @@ from django.conf import settings
 from django.http import JsonResponse, FileResponse, Http404
 from django.core.management import call_command
 from io import StringIO
+from pathlib import Path
 from .models import Backup
 
 
@@ -116,7 +117,26 @@ def crear_backup_db(request):
 
 def _ejecutar_backup_code():
     """Lógica principal para crear backup de código (ZIP + Git push)"""
+    # Buscamos la raíz del proyecto subiendo niveles desde BASE_DIR
+    # Normalmente BASE_DIR está en /root/project/app o /root/project
     project_dir = settings.BASE_DIR
+    if isinstance(project_dir, Path):
+        project_dir = str(project_dir)
+        
+    # Intentar subir hasta 2 niveles para encontrar la raíz real (con .git o requirements.txt)
+    current = project_dir
+    for _ in range(3): 
+        if os.path.exists(os.path.join(current, '.git')) or \
+           os.path.exists(os.path.join(current, 'requirements.txt')) or \
+           os.path.exists(os.path.join(current, 'manage.py')):
+            project_dir = current
+            # Si encontramos .git, probablemente es la verdadera raíz, detenemos búsqueda
+            if os.path.exists(os.path.join(current, '.git')):
+                break
+        parent = os.path.dirname(current)
+        if parent == current: break
+        current = parent
+
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
     # 1. Crear ZIP del proyecto
