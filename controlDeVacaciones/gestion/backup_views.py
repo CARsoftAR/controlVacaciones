@@ -155,7 +155,7 @@ def _ejecutar_backup_code():
     zip_file = os.path.join(output_dir, f'backup_code_{timestamp}.zip')
     
     # Lista de carpetas/archivos a ignorar
-    ignore_list = ['backups', '.git', '__pycache__', 'venv', 'env', 'node_modules', 'ngrok.exe', '.gemini', '.agent']
+    ignore_list = ['backups', '.git', '__pycache__', 'node_modules', 'ngrok.exe', '.gemini', '.agent']
     
     with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(project_dir):
