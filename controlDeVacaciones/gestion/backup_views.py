@@ -118,25 +118,28 @@ def crear_backup_db(request):
 def _ejecutar_backup_code():
     """Lógica principal para crear backup de código (ZIP + Git push)"""
     # Buscamos la raíz del proyecto subiendo niveles desde BASE_DIR
-    # Normalmente BASE_DIR está en /root/project/app o /root/project
-    project_dir = settings.BASE_DIR
-    if isinstance(project_dir, Path):
-        project_dir = str(project_dir)
-        
-    # Intentar subir hasta 2 niveles para encontrar la raíz real (con .git o requirements.txt)
-    current = project_dir
-    for _ in range(3): 
-        if os.path.exists(os.path.join(current, '.git')) or \
-           os.path.exists(os.path.join(current, 'requirements.txt')) or \
-           os.path.exists(os.path.join(current, 'manage.py')):
-            project_dir = current
-            # Si encontramos .git, probablemente es la verdadera raíz, detenemos búsqueda
-            if os.path.exists(os.path.join(current, '.git')):
-                break
+    project_dir = str(settings.BASE_DIR)
+    
+    # Subir hasta encontrar la carpeta que contiene .git (raíz del repo)
+    # o hasta un máximo de 5 niveles para evitar bucles infinitos
+    current = os.path.abspath(project_dir)
+    found_root = current
+    
+    for _ in range(5):
+        # Si esta carpeta tiene .git o manage.py y requirements.txt, es un buen candidato
+        if os.path.exists(os.path.join(current, '.git')):
+            found_root = current
+            break
+        if os.path.exists(os.path.join(current, 'manage.py')) and os.path.exists(os.path.join(current, 'requirements.txt')):
+            found_root = current
+            # Seguimos buscando por si .git está un nivel más arriba
+            
         parent = os.path.dirname(current)
-        if parent == current: break
+        if parent == current:
+            break
         current = parent
-
+        
+    project_dir = found_root
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
     # 1. Crear ZIP del proyecto
