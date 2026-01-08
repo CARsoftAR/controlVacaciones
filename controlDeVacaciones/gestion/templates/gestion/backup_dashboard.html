@@ -325,7 +325,7 @@
                     <td>
                         <div class="backup-actions-cell">
                             {% if backup.archivo and backup.status == 'completed' %}
-                            <a href="{% url 'descargar_backup' backup.id %}" class="backup-btn backup-btn-download">
+                            <a href="{% url 'gestion:descargar_backup' backup.id %}" class="backup-btn backup-btn-download">
                                 ⬇️ Descargar
                             </a>
                             {% endif %}
@@ -361,11 +361,11 @@ function crearBackup(tipo) {
     
     let url;
     if (tipo === 'db') {
-        url = '{% url "crear_backup_db" %}';
+        url = '{% url "gestion:crear_backup_db" %}';
     } else if (tipo === 'code') {
-        url = '{% url "crear_backup_code" %}';
+        url = '{% url "gestion:crear_backup_code" %}';
     } else {
-        url = '{% url "crear_backup_completo" %}';
+        url = '{% url "gestion:crear_backup_completo" %}';
     }
     
     fetch(url, {
