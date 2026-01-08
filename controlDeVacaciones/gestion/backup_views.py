@@ -62,9 +62,38 @@ def crear_backup_db(request):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_file = os.path.join(output_dir, f'backup_{db_name}_{timestamp}.sql')
 
+        # Buscar mysqldump en ubicaciones comunes (Windows)
+        mysqldump_paths = [
+            'mysqldump',  # Si está en PATH
+            r'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe',
+            r'C:\Program Files\MySQL\MySQL Server 5.7\bin\mysqldump.exe',
+            r'C:\xampp\mysql\bin\mysqldump.exe',
+            r'C:\wamp64\bin\mysql\mysql8.0.27\bin\mysqldump.exe',
+        ]
+        
+        mysqldump_cmd = None
+        for path in mysqldump_paths:
+            try:
+                # Verificar si el comando existe
+                test_result = subprocess.run(
+                    [path, '--version'],
+                    capture_output=True,
+                    timeout=5
+                )
+                if test_result.returncode == 0:
+                    mysqldump_cmd = path
+                    break
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+        
+        if not mysqldump_cmd:
+            raise Exception(
+                'No se encontró mysqldump. Instala MySQL Client Tools o agrega MySQL al PATH del sistema.'
+            )
+
         # Comando mysqldump
         dump_cmd = [
-            'mysqldump',
+            mysqldump_cmd,
             f'--host={db_host}',
             f'--port={db_port}',
             f'--user={db_user}',
@@ -83,7 +112,8 @@ def crear_backup_db(request):
                 stdout=f,
                 stderr=subprocess.PIPE,
                 text=True,
-                check=True
+                check=True,
+                timeout=300  # 5 minutos máximo
             )
 
         # Obtener tamaño del archivo
@@ -95,33 +125,44 @@ def crear_backup_db(request):
         backup.status = 'completed'
         backup.save()
 
-        messages.success(
-            request,
-            f'✅ Backup de base de datos creado exitosamente ({backup.tamaño_mb} MB)'
-        )
-        
         return JsonResponse({
             'success': True,
             'backup_id': backup.id,
-            'archivo': backup_file,
-            'tamaño_mb': backup.tamaño_mb
+            'archivo': os.path.basename(backup_file),
+            'tamaño_mb': backup.tamaño_mb,
+            'message': f'Backup creado exitosamente ({backup.tamaño_mb} MB)'
         })
 
     except subprocess.CalledProcessError as e:
         backup.status = 'failed'
-        backup.mensaje_error = e.stderr
+        error_msg = e.stderr if e.stderr else str(e)
+        backup.mensaje_error = error_msg
         backup.save()
         
-        messages.error(request, f'❌ Error al crear el backup: {e.stderr}')
-        return JsonResponse({'error': str(e.stderr)}, status=500)
+        return JsonResponse({
+            'success': False,
+            'error': f'Error de mysqldump: {error_msg}'
+        }, status=500)
+    
+    except subprocess.TimeoutExpired:
+        backup.status = 'failed'
+        backup.mensaje_error = 'Timeout: El backup tardó más de 5 minutos'
+        backup.save()
+        
+        return JsonResponse({
+            'success': False,
+            'error': 'El backup tardó demasiado tiempo. Intenta con una base de datos más pequeña.'
+        }, status=500)
     
     except Exception as e:
         backup.status = 'failed'
         backup.mensaje_error = str(e)
         backup.save()
         
-        messages.error(request, f'❌ Error inesperado: {str(e)}')
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 @login_required
@@ -185,32 +226,33 @@ def crear_backup_code(request):
         backup.status = 'completed'
         backup.save()
         
-        messages.success(
-            request,
-            f'✅ Backup de código fuente creado exitosamente (Commit: {commit_hash[:7]})'
-        )
-        
         return JsonResponse({
             'success': True,
             'backup_id': backup.id,
-            'commit_hash': commit_hash
+            'commit_hash': commit_hash,
+            'message': f'Backup de código creado exitosamente (Commit: {commit_hash[:7]})'
         })
         
     except subprocess.CalledProcessError as e:
         backup.status = 'failed'
-        backup.mensaje_error = e.stderr
+        error_msg = e.stderr if e.stderr else str(e)
+        backup.mensaje_error = error_msg
         backup.save()
         
-        messages.error(request, f'❌ Error al crear el backup: {e.stderr}')
-        return JsonResponse({'error': str(e.stderr)}, status=500)
+        return JsonResponse({
+            'success': False,
+            'error': f'Error de Git: {error_msg}'
+        }, status=500)
     
     except Exception as e:
         backup.status = 'failed'
         backup.mensaje_error = str(e)
         backup.save()
         
-        messages.error(request, f'❌ Error inesperado: {str(e)}')
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 @login_required
@@ -230,6 +272,8 @@ def crear_backup_completo(request):
     try:
         # Backup de DB
         db_response = crear_backup_db(request)
+        db_data = db_response.content.decode('utf-8')
+        
         if db_response.status_code != 200:
             raise Exception('Error al crear backup de base de datos')
         
@@ -241,11 +285,10 @@ def crear_backup_completo(request):
         backup.status = 'completed'
         backup.save()
         
-        messages.success(request, '✅ Backup completo creado exitosamente')
-        
         return JsonResponse({
             'success': True,
-            'backup_id': backup.id
+            'backup_id': backup.id,
+            'message': 'Backup completo creado exitosamente'
         })
         
     except Exception as e:
@@ -253,8 +296,10 @@ def crear_backup_completo(request):
         backup.mensaje_error = str(e)
         backup.save()
         
-        messages.error(request, f'❌ Error al crear el backup completo: {str(e)}')
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 @login_required
@@ -294,11 +339,18 @@ def eliminar_backup(request, backup_id):
         # Eliminar registro
         backup.delete()
         
-        messages.success(request, '✅ Backup eliminado exitosamente')
-        return JsonResponse({'success': True})
+        return JsonResponse({
+            'success': True,
+            'message': 'Backup eliminado exitosamente'
+        })
         
     except Backup.DoesNotExist:
-        return JsonResponse({'error': 'Backup no encontrado'}, status=404)
+        return JsonResponse({
+            'success': False,
+            'error': 'Backup no encontrado'
+        }, status=404)
     except Exception as e:
-        messages.error(request, f'❌ Error al eliminar el backup: {str(e)}')
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

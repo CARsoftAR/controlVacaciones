@@ -375,13 +375,20 @@ function crearBackup(tipo) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('✅ Backup creado exitosamente', 'success');
+    .then(response => {
+        return response.json().then(data => ({
+            ok: response.ok,
+            data: data
+        }));
+    })
+    .then(({ok, data}) => {
+        if (ok && data.success) {
+            const message = data.message || 'Backup creado exitosamente';
+            showToast(message, 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showToast('❌ Error al crear el backup', 'error');
+            const errorMsg = data.error || 'Error desconocido al crear el backup';
+            showToast(errorMsg, 'error', 'Error al crear backup');
             btn.disabled = false;
             btnText.style.display = 'inline';
             btnSpinner.style.display = 'none';
@@ -389,7 +396,7 @@ function crearBackup(tipo) {
     })
     .catch(error => {
         console.error('Error:', error);
-        showToast('❌ Error al crear el backup', 'error');
+        showToast('Error de conexión. Verifica tu conexión a internet.', 'error', 'Error de red');
         btn.disabled = false;
         btnText.style.display = 'inline';
         btnSpinner.style.display = 'none';
@@ -408,19 +415,27 @@ function eliminarBackup(backupId) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('✅ Backup eliminado exitosamente', 'success');
+    .then(response => {
+        return response.json().then(data => ({
+            ok: response.ok,
+            data: data
+        }));
+    })
+    .then(({ok, data}) => {
+        if (ok && data.success) {
+            const message = data.message || 'Backup eliminado exitosamente';
+            showToast(message, 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
-            showToast('❌ Error al eliminar el backup', 'error');
+            const errorMsg = data.error || 'Error al eliminar el backup';
+            showToast(errorMsg, 'error', 'Error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showToast('❌ Error al eliminar el backup', 'error');
+        showToast('Error de conexión', 'error', 'Error de red');
     });
 }
+
 </script>
 {% endblock %}
