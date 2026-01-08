@@ -24,6 +24,7 @@ import locale
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.drawing.image import Image
 
 # IMPORTS PARA GENERAR PDF (ReportLab)
 from reportlab.pdfgen import canvas
@@ -1705,6 +1706,36 @@ def exportar_calendario_excel(request):
             bottom=Side(style='thin', color='000000')
         )
 
+        # === ENCABEZADO CORPORATIVO ===
+        header_start_row = 5
+        
+        # 1. Logo
+        # CORRECCIÓN: Usamos la ruta correcta (la misma que en el PDF)
+        logo_path = os.path.join(settings.BASE_DIR.parent, 'gestion', 'imagenes', 'logo', 'logo.png')
+        if not os.path.exists(logo_path):
+            logo_path = os.path.join(settings.BASE_DIR.parent, 'gestion', 'imagenes', 'logo', 'logo.jpg')
+            
+        if os.path.exists(logo_path):
+            try:
+                img = Image(logo_path)
+                # Ajustar tamaño del logo
+                img.width = 220
+                img.height = 50
+                ws.add_image(img, 'A1')
+            except Exception as e:
+                logger.error(f"Error al insertar logo en Excel: {e}")
+
+        # 2. Títulos (Ahora a la derecha del logo)
+        ws.merge_cells(start_row=2, start_column=5, end_row=2, end_column=15)
+        title_cell = ws.cell(2, 5, f"Planilla de VACACIONES CICLO {anio_param}")
+        title_cell.font = Font(bold=True, size=14)
+        title_cell.alignment = left_align
+
+        ws.merge_cells(start_row=3, start_column=5, end_row=3, end_column=15)
+        subtitle_cell = ws.cell(3, 5, f"PLANILLA ENTREGADA {date.today().strftime('%d-%m-%y')}")
+        subtitle_cell.font = Font(bold=True, size=11)
+        subtitle_cell.alignment = left_align
+
         # Generar estructura de meses y semanas
         meses_globales = []
         for anio in anios_a_mostrar:
@@ -1718,51 +1749,51 @@ def exportar_calendario_excel(request):
         col_offset = 5  # Empleado, Disponible, Acumuladas, Restan, (espacio)
         total_semanas = sum(len(mes['semanas']) for mes in meses_globales)
 
-        # FILA 1: Headers de meses
+        # FILA DE MESES (header_start_row)
         current_col = col_offset
         
-        # Combinar verticalmente las columnas fijas (Empleado, Disponible, Acumuladas, Restan)
-        ws.merge_cells(start_row=1, start_column=1, end_row=2, end_column=1)
-        ws.cell(1, 1, "Empleado").fill = header_fill
-        ws.cell(1, 1).font = header_font
-        ws.cell(1, 1).alignment = center_align
-        ws.cell(1, 1).border = thin_border
+        # Combinar verticalmente las columnas fijas
+        for c in range(1, 5):
+            ws.merge_cells(start_row=header_start_row, start_column=c, end_row=header_start_row + 1, end_column=c)
+            
+        ws.cell(header_start_row, 1, "Empleado").fill = header_fill
+        ws.cell(header_start_row, 1).font = header_font
+        ws.cell(header_start_row, 1).alignment = center_align
+        ws.cell(header_start_row, 1).border = thin_border
         
-        ws.merge_cells(start_row=1, start_column=2, end_row=2, end_column=2)
-        ws.cell(1, 2, "Disponible").fill = header_fill
-        ws.cell(1, 2).font = header_font
-        ws.cell(1, 2).alignment = center_align
-        ws.cell(1, 2).border = thin_border
+        ws.cell(header_start_row, 2, "Disponible").fill = header_fill
+        ws.cell(header_start_row, 2).font = header_font
+        ws.cell(header_start_row, 2).alignment = center_align
+        ws.cell(header_start_row, 2).border = thin_border
         
-        ws.merge_cells(start_row=1, start_column=3, end_row=2, end_column=3)
-        ws.cell(1, 3, "Acumuladas").fill = header_fill
-        ws.cell(1, 3).font = header_font
-        ws.cell(1, 3).alignment = center_align
-        ws.cell(1, 3).border = thin_border
+        ws.cell(header_start_row, 3, "Acumuladas").fill = header_fill
+        ws.cell(header_start_row, 3).font = header_font
+        ws.cell(header_start_row, 3).alignment = center_align
+        ws.cell(header_start_row, 3).border = thin_border
         
-        ws.merge_cells(start_row=1, start_column=4, end_row=2, end_column=4)
-        ws.cell(1, 4, "Restan").fill = header_fill
-        ws.cell(1, 4).font = header_font
-        ws.cell(1, 4).alignment = center_align
-        ws.cell(1, 4).border = thin_border
+        ws.cell(header_start_row, 4, "Restan").fill = header_fill
+        ws.cell(header_start_row, 4).font = header_font
+        ws.cell(header_start_row, 4).alignment = center_align
+        ws.cell(header_start_row, 4).border = thin_border
 
         for mes in meses_globales:
             num_semanas = len(mes['semanas'])
             if num_semanas > 0:
-                ws.merge_cells(start_row=1, start_column=current_col, end_row=1, end_column=current_col + num_semanas - 1)
-                cell = ws.cell(1, current_col, mes['nombre'])
+                ws.merge_cells(start_row=header_start_row, start_column=current_col, end_row=header_start_row, end_column=current_col + num_semanas - 1)
+                cell = ws.cell(header_start_row, current_col, mes['nombre'])
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = center_align
+                cell.border = thin_border
                 current_col += num_semanas
 
-        # FILA 2: Headers de semanas
-        ws.row_dimensions[2].height = 35  # Altura de la fila de semanas
+        # FILA DE SEMANAS (header_start_row + 1)
+        ws.row_dimensions[header_start_row + 1].height = 35
         week_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
         current_col = col_offset
         for mes in meses_globales:
             for semana in mes['semanas']:
-                cell = ws.cell(2, current_col, semana['rango'])
+                cell = ws.cell(header_start_row + 1, current_col, semana['rango'])
                 cell.fill = week_fill
                 cell.font = week_font
                 cell.alignment = week_align
@@ -1774,9 +1805,11 @@ def exportar_calendario_excel(request):
         fecha_fin_total = date(anios_a_mostrar[-1], 12, 31)
         anio_saldo = date.today().year if date.today().year in anios_a_mostrar else anios_a_mostrar[0]
 
-        departamentos = Departamento.objects.all().order_by('nombre')
+        # Inicializar contador de personas por semana
+        totales_por_columna = {}
         
-        current_row = 3
+        departamentos = Departamento.objects.all().order_by('nombre')
+        current_row = header_start_row + 2
         
         for depto in departamentos:
             empleados_depto = Empleado.objects.filter(
@@ -1790,6 +1823,7 @@ def exportar_calendario_excel(request):
                 cell.fill = dept_fill
                 cell.font = dept_font
                 cell.alignment = left_align
+                cell.border = thin_border
                 current_row += 1
                 
                 # Empleados del departamento
@@ -1863,14 +1897,41 @@ def exportar_calendario_excel(request):
                                 cell.fill = vac_fill
                                 cell.font = vac_font
                                 cell.value = dias_en_semana
+                                totales_por_columna[current_col] = totales_por_columna.get(current_col, 0) + 1
                             elif estado_vacacion == RegistroVacaciones.ESTADO_PENDIENTE:
                                 cell.fill = vac_pending_fill
                                 cell.font = vac_font
                                 cell.value = dias_en_semana
+                                totales_por_columna[current_col] = totales_por_columna.get(current_col, 0) + 1
                             
                             current_col += 1
                     
                     current_row += 1
+        
+        # --- FILA DE TOTALES POR SEMANA ---
+        # Estilo para la fila de totales
+        total_fill = PatternFill(start_color="ecf0f1", end_color="ecf0f1", fill_type="solid")
+        total_font = Font(bold=True, color="2c3e50")
+
+        # Etiqueta de la fila
+        ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=4)
+        label_cell = ws.cell(current_row, 1, "TOTAL PERSONAS EN VACACIONES")
+        label_cell.fill = total_fill
+        label_cell.font = total_font
+        label_cell.alignment = Alignment(horizontal="right", vertical="center")
+        label_cell.border = thin_border
+
+        # Poner los totales acumulados
+        current_col = col_offset
+        for mes in meses_globales:
+            for semana in mes['semanas']:
+                total = totales_por_columna.get(current_col, 0)
+                cell = ws.cell(current_row, current_col, total if total > 0 else 0)
+                cell.fill = total_fill
+                cell.font = total_font
+                cell.alignment = center_align
+                cell.border = thin_border
+                current_col += 1
 
         # Ajustar anchos de columna
         ws.column_dimensions['A'].width = 30

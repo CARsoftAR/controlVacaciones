@@ -11,7 +11,9 @@ BASE_DIR = Path(__file__).resolve().parent
 # ==============================================================================
 # ⚠️ ADVERTENCIA: SEGURIDAD
 # ==============================================================================
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
+# 🛑 NOTA: Durante el desarrollo, usamos una clave fija si no hay variable de entorno 
+# para evitar que se cierren las sesiones cada vez que el servidor se reinicia.
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-stable-key-for-dev-123456789')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['192.168.88.77','127.0.0.1','*']
 CSRF_TRUSTED_ORIGINS = ['https://*.railway.app', 'https://*.ngrok-free.app', 'https://*.ngrok-free.dev']
