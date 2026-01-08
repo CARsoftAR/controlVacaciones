@@ -236,29 +236,38 @@ def crear_backup_completo(request):
     
     try:
         # 1. Ejecutar Backup de DB
-        db_file, _ = _ejecutar_backup_db()
+        db_file, db_size = _ejecutar_backup_db()
         
         # 2. Ejecutar Backup de código
-        code_zip, _, commit_hash = _ejecutar_backup_code()
+        # Nota: code_zip puede ser muy pesado, así que cuidado con tiempos de espera
+        code_zip, code_size, commit_hash = _ejecutar_backup_code()
         
+        # Validar que los archivos existan antes de intentar empaquetarlos
+        if not os.path.exists(db_file):
+            raise Exception(f"El archivo de base de datos no se generó: {db_file}")
+        if not os.path.exists(code_zip):
+            raise Exception(f"El archivo de código no se generó: {code_zip}")
+
         # 3. Crear el bundle final (Un ZIP que contiene ambos)
         output_dir = os.path.join(settings.BASE_DIR, 'backups', 'full')
         os.makedirs(output_dir, exist_ok=True)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         full_zip_path = os.path.join(output_dir, f'backup_completo_{timestamp}.zip')
         
-        with zipfile.ZipFile(full_zip_path, 'w') as zipf:
+        # Usamos ZIP_STORED (sin compresión) para que sea rápido, ya que los archivos internos 
+        # (especialmente el code_zip) ya están comprimidos.
+        with zipfile.ZipFile(full_zip_path, 'w', zipfile.ZIP_STORED) as zipf:
             zipf.write(db_file, os.path.basename(db_file))
             zipf.write(code_zip, os.path.basename(code_zip))
             
+        final_size = os.path.getsize(full_zip_path)
+        
+        # Actualización explícita y robusta
         backup.archivo = full_zip_path
-        backup.tamaño = os.path.getsize(full_zip_path)
+        backup.tamaño = final_size
         backup.commit_hash = commit_hash
         backup.status = 'completed'
         backup.save()
-        
-        # Opcional: Limpiar los archivos individuales temporales si se desea, 
-        # pero aquí los mantenemos en sus carpetas para que aparezcan en el historial
         
         return JsonResponse({
             'success': True,
@@ -268,9 +277,15 @@ def crear_backup_completo(request):
         })
         
     except Exception as e:
-        backup.status = 'failed'
-        backup.mensaje_error = str(e)
-        backup.save()
+        # Asegurar que el estado fallido se guarde
+        try:
+            backup.status = 'failed'
+            backup.mensaje_error = str(e)
+            backup.save()
+        except:
+            pass # Si falla guardar el error, no podemos hacer mucho más
+            
+        print(f"Error en backup completo: {e}") # Log para consola
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
