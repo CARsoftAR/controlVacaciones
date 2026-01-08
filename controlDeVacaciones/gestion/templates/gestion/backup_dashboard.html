@@ -413,6 +413,53 @@
 
     .dark .confirm-modal-icon.success { background: rgba(34, 197, 94, 0.1); }
     .dark .confirm-modal-icon.error { background: rgba(239, 68, 68, 0.1); }
+    .github-status-card {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 2rem;
+        border-left: 4px solid #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .github-info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .github-info-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #718096;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .github-info-value {
+        font-size: 0.95rem;
+        color: #2d3748;
+        font-weight: 600;
+        font-family: 'Courier New', Courier, monospace;
+    }
+
+    .github-link {
+        color: #4299e1;
+        text-decoration: none;
+    }
+
+    .github-link:hover {
+        text-decoration: underline;
+    }
+
+    .backup-card-github .backup-card-icon {
+        background: linear-gradient(135deg, #24292e 0%, #444d56 100%);
+    }
+
+    .backup-card-github .backup-card-btn {
+        background: linear-gradient(135deg, #24292e 0%, #444d56 100%);
+    }
 </style>
 {% endblock %}
 
@@ -423,12 +470,34 @@
         <p>Protege tu información con backups automáticos de base de datos y código fuente</p>
     </div>
 
+    {% if github_info.remote_url %}
+    <div class="github-status-card">
+        <div style="font-size: 2rem;">🐙</div>
+        <div class="github-info-item">
+            <span class="github-info-label">Repositorio GitHub</span>
+            <span class="github-info-value">
+                <a href="{{ github_info.web_url }}" target="_blank" class="github-link">
+                    {{ github_info.remote_url }}
+                </a>
+            </span>
+        </div>
+        <div class="github-info-item">
+            <span class="github-info-label">Rama Actual</span>
+            <span class="github-info-value">{{ github_info.branch }}</span>
+        </div>
+        <div class="github-info-item">
+            <span class="github-info-label">Último Push</span>
+            <span class="github-info-value">{{ github_info.last_commit }}</span>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="backup-actions">
         <div class="backup-card backup-card-db">
             <div class="backup-card-icon">💾</div>
             <h3>Backup de Base de Datos</h3>
             <p>Crea una copia de seguridad completa de la base de datos MySQL</p>
-            <button class="backup-card-btn" onclick="crearBackup('db')">
+            <button class="backup-card-btn" onclick="crearBackup('db', event)">
                 <span class="btn-text">Crear Backup DB</span>
                 <span class="btn-spinner" style="display: none;"><span class="spinner"></span> Procesando...</span>
             </button>
@@ -436,11 +505,21 @@
 
         <div class="backup-card backup-card-code">
             <div class="backup-card-icon">📦</div>
-            <h3>Backup de Código Fuente</h3>
-            <p>Sube el código actual a GitHub con un commit automático</p>
-            <button class="backup-card-btn" onclick="crearBackup('code')">
-                <span class="btn-text">Crear Backup Code</span>
+            <h3>Backup ZIP de Código</h3>
+            <p>Genera un archivo ZIP descargable con todo el código fuente</p>
+            <button class="backup-card-btn" onclick="crearBackup('code', event)">
+                <span class="btn-text">Generar ZIP</span>
                 <span class="btn-spinner" style="display: none;"><span class="spinner"></span> Procesando...</span>
+            </button>
+        </div>
+
+        <div class="backup-card backup-card-github">
+            <div class="backup-card-icon">🚀</div>
+            <h3>Sincronizar GitHub</h3>
+            <p>Realiza commit y push automático de los cambios a GitHub</p>
+            <button class="backup-card-btn" onclick="crearBackup('github', event)">
+                <span class="btn-text">Push a GitHub</span>
+                <span class="btn-spinner" style="display: none;"><span class="spinner"></span> Sincronizando...</span>
             </button>
         </div>
 
@@ -448,7 +527,7 @@
             <div class="backup-card-icon">🔄</div>
             <h3>Backup Completo</h3>
             <p>Realiza un backup completo de base de datos y código fuente</p>
-            <button class="backup-card-btn" onclick="crearBackup('full')">
+            <button class="backup-card-btn" onclick="crearBackup('full', event)">
                 <span class="btn-text">Crear Backup Completo</span>
                 <span class="btn-spinner" style="display: none;"><span class="spinner"></span> Procesando...</span>
             </button>
@@ -498,6 +577,13 @@
                                 ⬇️ Descargar
                             </a>
                             {% endif %}
+                            
+                            {% if backup.commit_hash and github_info.web_url %}
+                            <a href="{{ github_info.web_url }}/commit/{{ backup.commit_hash }}" target="_blank" class="backup-btn" style="background: #2d3748; color: white;">
+                                🐙 Git: {{ backup.commit_hash|slice:":7" }}
+                            </a>
+                            {% endif %}
+
                             <button class="backup-btn backup-btn-delete" onclick="eliminarBackup({{ backup.id }})">
                                 🗑️ Eliminar
                             </button>
@@ -547,7 +633,7 @@
 </div>
 
 <script>
-function crearBackup(tipo) {
+function crearBackup(tipo, event) {
     const btn = event.target.closest('button');
     const btnText = btn.querySelector('.btn-text');
     const btnSpinner = btn.querySelector('.btn-spinner');
@@ -562,6 +648,8 @@ function crearBackup(tipo) {
         url = '{% url "gestion:crear_backup_db" %}';
     } else if (tipo === 'code') {
         url = '{% url "gestion:crear_backup_code" %}';
+    } else if (tipo === 'github') {
+        url = '{% url "gestion:crear_backup_github" %}';
     } else {
         url = '{% url "gestion:crear_backup_completo" %}';
     }

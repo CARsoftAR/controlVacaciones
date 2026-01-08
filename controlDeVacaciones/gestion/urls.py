@@ -65,6 +65,7 @@ urlpatterns = [
     path('backup/', backup_views.backup_dashboard, name='backup_dashboard'),
     path('backup/db/crear/', backup_views.crear_backup_db, name='crear_backup_db'),
     path('backup/code/crear/', backup_views.crear_backup_code, name='crear_backup_code'),
+    path('backup/github/crear/', backup_views.crear_backup_github, name='crear_backup_github'),
     path('backup/completo/crear/', backup_views.crear_backup_completo, name='crear_backup_completo'),
     path('backup/<int:backup_id>/descargar/', backup_views.descargar_backup, name='descargar_backup'),
     path('backup/<int:backup_id>/eliminar/', backup_views.eliminar_backup, name='eliminar_backup'),

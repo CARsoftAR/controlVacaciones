@@ -7,7 +7,7 @@ from django.core.management.utils import get_random_secret_key
 # Define el directorio base del proyecto
 # 🛑 CORRECCIÓN CLAVE: Subimos TRES niveles para llegar al directorio raíz que contiene 'templates'
 # Si settings.py está en el nivel 3, .parent.parent.parent lleva al nivel 0 (la raíz).
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 # ==============================================================================
 # ⚠️ ADVERTENCIA: SEGURIDAD
 # ==============================================================================

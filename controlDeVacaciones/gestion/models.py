@@ -233,7 +233,8 @@ class Backup(models.Model):
     """Modelo para registrar los backups realizados"""
     TIPO_CHOICES = [
         ('db', 'Base de Datos'),
-        ('code', 'Código Fuente'),
+        ('code', 'Código Fuente (ZIP)'),
+        ('github', 'Sincronización GitHub'),
         ('full', 'Completo'),
     ]
     
