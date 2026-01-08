@@ -13,22 +13,19 @@
     {# DASHBOARD DE MANAGER #}
     {# ============================================ #}
 
-    <!-- 
-       SECCIÓN PERSONAL PARA MANAGERS EN MOVIL (Nuevo, cumple requerimiento "Solo mostrar dias y pedir") 
-       Visible solo en móviles/pantallas pequeñas.
-    -->
+    {% if not user.is_superuser %}
     <div class="lg:hidden block mb-12 border-b border-gray-200 dark:border-gray-700 pb-8">
-        <!-- Banner de Usuario Móvil -->
-        <div class="mb-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 shadow-lg">
+        <!-- Banner de Usuario Móvil Suave -->
+        <div class="mb-6 bg-slate-50 rounded-2xl p-6 border border-slate-200">
             <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-2xl shadow-lg border-2 border-white/30">
+                <div class="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-2xl shadow-sm border border-white">
                     {{ empleado.nombre|first|upper }}{{ empleado.apellido|first|upper }}
                 </div>
                 <div class="flex-1">
-                    <p class="text-white/80 text-sm font-medium">Sesión activa</p>
-                    <h2 class="text-white font-bold text-xl">{{ empleado.nombre }} {{ empleado.apellido }}</h2>
-                    <p class="text-white/90 text-xs mt-1">
-                        <i class="fas fa-briefcase mr-1"></i>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Sesión activa</p>
+                    <h2 class="text-slate-900 font-black text-xl">{{ empleado.nombre }} {{ empleado.apellido }}</h2>
+                    <p class="text-slate-500 text-xs mt-1">
+                        <i class="fas fa-briefcase text-indigo-400 mr-1"></i>
                         {% if empleado.es_manager %}Manager{% else %}Empleado{% endif %}
                     </p>
                 </div>
@@ -71,6 +68,7 @@
              </div>
         </div>
      </div>
+    {% endif %}
 
 
     <!-- 
@@ -81,24 +79,66 @@
     -->
     <div class="hidden lg:block">
         
-        <!-- Welcome Section con animación -->
-        <div class="mb-10 animate-fade-in">
-            <div class="bg-gradient-to-r from-purple-600 via-blue-600 to-blue-700 rounded-3xl p-8 text-white shadow-2xl">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-5xl font-extrabold mb-4 animate-slide-in-left">
-                            ¡Bienvenido, {{ empleado.nombre }}! 👋
+        <!-- Welcome Section Compacta y Refinada -->
+        <div class="mb-8 animate-fade-in group">
+            <div class="bg-white rounded-3xl p-8 text-slate-800 border-2 border-slate-50 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+                <!-- Decoración sutil -->
+                <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-50/40 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+                
+                <div class="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-6">
+                    <div class="flex-1">
+                        <div class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                            Gestión Estratégica
+                        </div>
+                        <h1 class="text-3xl font-black text-slate-900 mb-1 tracking-tight">
+                            ¡Bienvenido, <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600">{{ empleado.nombre }}</span>! 👋
                         </h1>
-                        <p class="text-xl opacity-90 animate-slide-in-left animation-delay-200">
-                            Panel de gestión del equipo - Resumen general en tiempo real
+                        <p class="text-sm text-slate-500 font-medium">
+                            Panel de control - Ciclo {{ current_year }}
                         </p>
-                    </div>
-                    <div class="hidden lg:block">
-                        <div class="text-right">
-                            <div class="text-6xl font-bold animate-pulse">{{ current_year }}</div>
-                            <div class="text-sm opacity-75">Ciclo Actual</div>
+
+                        <!-- Info Chips integrados -->
+                        <div class="flex flex-wrap gap-3 mt-5">
+                            {% if proximo_festivo %}
+                            <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3 flex items-center gap-3 shadow-sm min-w-[220px] hover:bg-white hover:border-indigo-100 transition-all">
+                                <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+                                    <i class="fas fa-flag text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Próximo Feriado</p>
+                                    <p class="text-xs font-bold text-slate-800 truncate w-32" title="{{ proximo_festivo.descripcion }}">{{ proximo_festivo.descripcion }}</p>
+                                    <p class="text-[9px] font-medium text-amber-600 mt-0.5">
+                                        {{ proximo_festivo.fecha|date:"d M" }} • Faltan {{ proximo_festivo.dias_restantes }} días
+                                    </p>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if mi_proxima_vacacion and not user.is_superuser %}
+                            <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3 flex items-center gap-3 shadow-sm min-w-[220px] hover:bg-white hover:border-indigo-100 transition-all">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
+                                    <i class="fas fa-plane text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tu Descanso</p>
+                                    <p class="text-xs font-bold text-slate-800">{{ mi_proxima_vacacion.fecha_inicio|date:"d M, Y" }}</p>
+                                    <p class="text-[9px] font-medium text-indigo-600 mt-0.5">
+                                        Faltan {{ dias_para_vacacion }} días
+                                    </p>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
+                    
+                    {% if not user.is_superuser %}
+                    <div class="flex items-center gap-6">
+                        <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100 text-center min-w-[140px] shadow-inner">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Días Disponibles</p>
+                            <p class="text-4xl font-black text-slate-900">{{ saldo_disponible_personal|default:"0" }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -186,16 +226,16 @@
 
         <!-- Sección de Gráficos Interactivos (Solo escritorio) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-            <!-- Gráfico de Distribución por Departamento -->
+            <!-- Gráfico de Vacaciones por Mes (Saturación) -->
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
                 <div class="flex items-center gap-3 mb-6">
                     <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                        <i class="fas fa-chart-pie text-blue-600 dark:text-blue-400 text-2xl"></i>
+                        <i class="fas fa-calendar-alt text-blue-600 dark:text-blue-400 text-2xl"></i>
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Distribución por Departamento</h3>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Vacaciones por Mes</h3>
                 </div>
                 <div class="relative h-80">
-                    <canvas id="departamentoChart"></canvas>
+                    <canvas id="vacacionesMesChart"></canvas>
                 </div>
             </div>
 
@@ -203,7 +243,7 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
                 <div class="flex items-center gap-3 mb-6">
                     <div class="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                        <i class="fas fa-chart-bar text-green-600 dark:text-green-400 text-2xl"></i>
+                        <i class="fas fa-chart-pie text-green-600 dark:text-green-400 text-2xl"></i>
                     </div>
                     <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Estado de Solicitudes</h3>
                 </div>
@@ -389,9 +429,13 @@
 
     <!-- Welcome Section con animación -->
     <div class="mb-10 animate-fade-in">
-        <div class="bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 rounded-3xl p-8 text-white shadow-2xl">
-            <div class="flex items-center justify-between">
-                <div class="flex-1">
+        <div class="bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+            <!-- Círculos decorativos -->
+            <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+            <div class="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full -ml-24 -mb-24"></div>
+
+            <div class="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                <div>
                     <!-- Banner de Usuario Móvil (Solo móvil) -->
                     <div class="lg:hidden mb-4 flex items-center gap-3">
                         <div class="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-lg shadow-lg border-2 border-white/30">
@@ -407,14 +451,44 @@
                         ¡Bienvenido, {{ empleado.nombre }}! 👋
                     </h1>
                     <p class="text-xl opacity-90 animate-slide-in-left animation-delay-200">
-                        Resumen de tu información de vacaciones
+                        Resumen de tu información de vacaciones - Ciclo {{ current_year }}
                     </p>
                 </div>
-                <div class="hidden lg:block">
-                    <div class="text-right">
-                        <div class="text-6xl font-bold animate-pulse">{{ current_year }}</div>
-                        <div class="text-sm opacity-75">Ciclo Actual</div>
+
+                <!-- Info Premium Cards -->
+                <div class="flex flex-wrap gap-4 animate-slide-in-right">
+                    {% if proximo_festivo %}
+                    <div class="bg-white/20 backdrop-blur-md rounded-2xl p-4 border border-white/30 flex items-center gap-4 shadow-lg min-w-[200px]">
+                        <div class="w-12 h-12 rounded-xl bg-orange-400/90 flex items-center justify-center text-white shadow-inner">
+                            <i class="fas fa-flag text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-white/70">Próximo Feriado</p>
+                            <p class="text-sm font-black">{{ proximo_festivo.descripcion }}</p>
+                            <p class="text-[10px] font-medium opacity-80 mt-1">
+                                {{ proximo_festivo.fecha|date:"d M" }} • Falta{% if proximo_festivo.dias_restantes != 1 %}n{% endif %} <b>{{ proximo_festivo.dias_restantes }}</b> d{% if proximo_festivo.dias_restantes != 1 %}ías{% else %}ía{% endif %}
+                            </p>
+                        </div>
                     </div>
+                    {% endif %}
+
+                    {% if mi_proxima_vacacion %}
+                    <div class="bg-white/20 backdrop-blur-md rounded-2xl p-4 border border-white/30 flex items-center gap-4 shadow-lg min-w-[200px]">
+                        <div class="w-12 h-12 rounded-xl bg-blue-400/90 flex items-center justify-center text-white shadow-inner animate-pulse">
+                            <i class="fas fa-plane text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-white/70">Tus Vacaciones</p>
+                            <p class="text-sm font-black">{{ mi_proxima_vacacion.fecha_inicio|date:"d/m/Y" }}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] font-medium opacity-80">Falta{% if dias_para_vacacion != 1 %}n{% endif %} <b>{{ dias_para_vacacion }}</b> d{% if dias_para_vacacion != 1 %}ías{% else %}ía{% endif %}</span>
+                                <a href="{% url 'gestion:exportar_notificacion_ics' mi_proxima_vacacion.id %}" class="bg-white text-blue-600 rounded px-1 text-[9px] font-bold hover:bg-blue-50 transition-colors">
+                                    <i class="fas fa-calendar-plus mr-1"></i>CALENDARIO
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -586,16 +660,6 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if es_manager_dashboard %}
-<!-- Datos para Gráficos (Inyectados fuera del script para evitar errores de sintaxis) -->
-<div id="graph-data" style="display: none;"
-    data-depto-labels="{% for depto in departamentos_stats %}{{ depto.nombre }}{% if not forloop.last %}|{% endif %}{% endfor %}"
-    data-depto-values="{% for depto in departamentos_stats %}{{ depto.empleados }}{% if not forloop.last %}|{% endif %}{% endfor %}"
-    data-aprobadas="{{ estados_solicitudes.aprobadas|default:0 }}"
-    data-pendientes="{{ estados_solicitudes.pendientes|default:0 }}"
-    data-rechazadas="{{ estados_solicitudes.rechazadas|default:0 }}">
-</div>
-{% endif %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // ==========================================
@@ -637,76 +701,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ==========================================
-    // GRÁFICOS INTERACTIVOS (SOLO PARA MANAGERS)
-    // ==========================================
-    const graphDataEl = document.getElementById('graph-data');
-    if (graphDataEl) {
-        Chart.defaults.font.family = "'Inter', sans-serif";
-        Chart.defaults.color = '#6b7280';
-        
-        const departamentoCtx = document.getElementById('departamentoChart');
-        if (departamentoCtx) {
-            const labels = graphDataEl.dataset.deptoLabels.split('|');
-            const values = graphDataEl.dataset.deptoValues.split('|').map(Number);
-
-            new Chart(departamentoCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316'],
-                        borderWidth: 2, borderColor: '#ffffff'
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)', padding: 12, cornerRadius: 8,
-                            callbacks: {
-                                label: function(context) {
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${context.label}: ${value} empleados (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        const estadoCtx = document.getElementById('estadoChart');
-        if (estadoCtx) {
-            new Chart(estadoCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Aprobadas', 'Pendientes', 'Rechazadas'],
-                    datasets: [{
-                        label: 'Solicitudes',
-                        data: [
-                            parseInt(graphDataEl.dataset.aprobadas),
-                            parseInt(graphDataEl.dataset.pendientes),
-                            parseInt(graphDataEl.dataset.rechazadas)
-                        ],
-                        backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)'],
-                        borderColor: ['rgb(34, 197, 94)', 'rgb(245, 158, 11)', 'rgb(239, 68, 68)'],
-                        borderWidth: 2, borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
-            });
-        }
-    }
-
-    // ==========================================
     // ANIMACIONES DE ENTRADA
     // ==========================================
     const observerOptions = {
@@ -738,21 +732,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         card.addEventListener('mouseleave', function() {
             this.style.transform = 'translateY(0) scale(1)';
-        });
-    });
-
-    // ==========================================
-    // MEJORAR PERFORMANCE DE SCROLL
-    // ==========================================
-    let scrollTimeout;
-    window.addEventListener('scroll', () => {
-        if (scrollTimeout) {
-            window.cancelAnimationFrame(scrollTimeout);
-        }
-        
-        scrollTimeout = window.requestAnimationFrame(() => {
-            // Lógica de scroll optimizada
-            document.body.style.setProperty('--scroll-y', `${window.scrollY}px`);
         });
     });
 });
@@ -868,4 +847,87 @@ document.addEventListener('DOMContentLoaded', function() {
     transition: all 0.3s ease;
 }
 </style>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if es_manager_dashboard %}
+    
+    // --- Gráfico 1: Vacaciones por Mes (Bar Chart) ---
+    const ctxMeses = document.getElementById('vacacionesMesChart').getContext('2d');
+    new Chart(ctxMeses, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_meses_labels|safe }},
+            datasets: [{
+                label: 'Vacaciones Aprobadas',
+                data: {{ chart_meses_data|safe }},
+                backgroundColor: 'rgba(59, 130, 246, 0.6)', // Blue-500
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1,
+                borderRadius: 5,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0 }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    // --- Gráfico 2: Estado de Solicitudes (Doughnut Chart) ---
+    const ctxEstados = document.getElementById('estadoChart').getContext('2d');
+    
+    // Datos y Colores
+    const estadosLabels = {{ chart_estados_labels|safe }};
+    const estadosData = {{ chart_estados_data|safe }};
+    
+    // Mapeo de colores según estado
+    const colorMap = {
+        'Aprobadas': 'rgba(16, 185, 129, 0.8)', // Green-500
+        'Pendientes': 'rgba(245, 158, 11, 0.8)', // Amber-500
+        'Rechazadas': 'rgba(239, 68, 68, 0.8)'   // Red-500
+    };
+    const bgColors = estadosLabels.map(label => colorMap[label] || '#cbd5e1');
+
+    new Chart(ctxEstados, {
+        type: 'doughnut',
+        data: {
+            labels: estadosLabels,
+            datasets: [{
+                data: estadosData,
+                backgroundColor: bgColors,
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { size: 12 },
+                        usePointStyle: true
+                    }
+                }
+            },
+            cutout: '70%' // Hace el anillo más fino
+        }
+    });
+
+    {% endif %}
+});
+</script>
 {% endblock %}

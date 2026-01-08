@@ -279,7 +279,13 @@ def dashboard(request):
             # Si no es superusuario y no tiene perfil, lo redirige al login
             return redirect('/login/') 
             
-    current_year = timezone.now().year
+    hoy = timezone.now()
+    # El ciclo de vacaciones suele referirse al año anterior hasta que comienza el nuevo período de goce (octubre)
+    if hoy.month < 10:
+        current_year = hoy.year - 1
+    else:
+        current_year = hoy.year
+        
     context = {'empleado': empleado, 'current_year': current_year}
     
     if empleado.es_manager:
@@ -339,16 +345,40 @@ def dashboard(request):
                 })
         
         # 7. Estadísticas para gráficos (solo su equipo)
+        # Para "Estado de Solicitudes", queremos ver el panorama general reciente, no solo las de 2026.
+        # Por ejemplo, pendientes del año pasado que aún no se cerraron.
         if request.user.is_superuser:
-            f_stats = Q(fecha_inicio__year=current_year)
+            f_equipo = Q()
         else:
-            f_stats = Q(fecha_inicio__year=current_year, empleado__in=equipo_ids)
+            f_equipo = Q(empleado__in=equipo_ids)
 
         estados_solicitudes = {
-            'aprobadas': RegistroVacaciones.objects.filter(f_stats, estado=RegistroVacaciones.ESTADO_APROBADA).count(),
-            'pendientes': RegistroVacaciones.objects.filter(f_stats, estado=RegistroVacaciones.ESTADO_PENDIENTE).count(),
-            'rechazadas': RegistroVacaciones.objects.filter(f_stats, estado=RegistroVacaciones.ESTADO_RECHAZADA).count()
+            'Aprobadas': RegistroVacaciones.objects.filter(f_equipo, estado=RegistroVacaciones.ESTADO_APROBADA).count(),
+            'Pendientes': RegistroVacaciones.objects.filter(f_equipo, estado=RegistroVacaciones.ESTADO_PENDIENTE).count(),
+            'Rechazadas': RegistroVacaciones.objects.filter(f_equipo, estado=RegistroVacaciones.ESTADO_RECHAZADA).count()
         }
+
+        # 8. Vacaciones por Mes (Saturación de Calendario)
+        # Inicializar contador de meses
+        vacaciones_por_mes = {m: 0 for m in range(1, 13)}
+        
+        # IMPORTANTE: Para estadísticas de calendario usamos el año actual real, 
+        # no el año del ciclo de saldo, para que el manager vea la carga actual del equipo.
+        anio_calendario = timezone.now().year
+        
+        # Obtener todas las vacaciones aprobadas del año actual (para el equipo)
+        vacaciones_aprobadas_qs = RegistroVacaciones.objects.filter(
+            f_equipo, 
+            fecha_inicio__year=anio_calendario,
+            estado=RegistroVacaciones.ESTADO_APROBADA
+        ).values('fecha_inicio')
+        
+        for v in vacaciones_aprobadas_qs:
+            mes = v['fecha_inicio'].month
+            vacaciones_por_mes[mes] += 1
+            
+        nombre_meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+        datos_por_mes = list(vacaciones_por_mes.values()) # [Cant Ene, Cant Feb, ...]
         
         context.update({
             'es_manager_dashboard': True,
@@ -358,7 +388,11 @@ def dashboard(request):
             'vacaciones_proximas': vacaciones_proximas,
             'ultimas_solicitudes': ultimas_solicitudes,
             'departamentos_stats': departamentos_stats,
-            'estados_solicitudes': estados_solicitudes,
+            # DATOS PARA GRÁFICOS
+            'chart_estados_labels': list(estados_solicitudes.keys()),
+            'chart_estados_data': list(estados_solicitudes.values()),
+            'chart_meses_labels': nombre_meses,
+            'chart_meses_data': datos_por_mes
         })
         
         # Datos personales del manager (sección secundaria)
@@ -371,10 +405,37 @@ def dashboard(request):
             context['saldo_disponible_personal'] = saldo_personal.total_disponible()
         except Exception:
             context['saldo_disponible_personal'] = 0
-    else:
-        # ============================================
-        # DASHBOARD DE EMPLEADO - Datos Personales
-        # ============================================
+
+    # ============================================
+    # 🌟 MEJORAS PREMIUM: Próximo Feriado y Próxima Vacación
+    # ============================================
+    hoy = date.today()
+    
+    # 1. Próximo Feriado
+    proximo_festivo = DiasFestivos.objects.filter(fecha__gte=hoy).order_by('fecha').first()
+    if proximo_festivo:
+        dias_para_festivo = (proximo_festivo.fecha - hoy).days
+        context['proximo_festivo'] = {
+            'fecha': proximo_festivo.fecha,
+            'descripcion': proximo_festivo.descripcion,
+            'dias_restantes': dias_para_festivo
+        }
+
+    # 2. Mi Próxima Vacación (Solo aprobadas en el futuro)
+    mi_proxima_vacacion = RegistroVacaciones.objects.filter(
+        empleado=empleado,
+        estado=RegistroVacaciones.ESTADO_APROBADA,
+        fecha_inicio__gt=hoy
+    ).order_by('fecha_inicio').first()
+    
+    if mi_proxima_vacacion:
+        context['mi_proxima_vacacion'] = mi_proxima_vacacion
+        context['dias_para_vacacion'] = (mi_proxima_vacacion.fecha_inicio - hoy).days
+
+    # ============================================
+    # DASHBOARD PARA EMPLEADO (SI NO ES MANAGER)
+    # ============================================
+    if not empleado.es_manager:
         try:
             # Intenta obtener el saldo. Si no existe, se crea con LCT base por defecto
             saldo, created = SaldoVacaciones.objects.get_or_create(
@@ -1068,13 +1129,24 @@ def gestion_empleados(request):
 @login_required
 @user_passes_test(is_manager)
 def gestion_saldos(request):
-    # Obtener todos los saldos o datos para la gestión
-    current_year = timezone.now().year
-    saldos = SaldoVacaciones.objects.filter(ciclo=current_year).select_related('empleado__user', 'empleado__departamento').order_by('empleado__apellido')
+    # Cálculo automático del ciclo (Igual que en dashboard)
+    hoy_dt = timezone.now()
+    if hoy_dt.month < 10:
+        anio_ciclo = hoy_dt.year - 1
+    else:
+        anio_ciclo = hoy_dt.year
+        
+    saldos_list = SaldoVacaciones.objects.filter(ciclo=anio_ciclo).select_related('empleado__user', 'empleado__departamento').order_by('empleado__apellido')
+    
+    # Paginación de 5 items por defecto
+    from django.core.paginator import Paginator
+    paginator = Paginator(saldos_list, 5)
+    page_number = request.GET.get('page')
+    saldos = paginator.get_page(page_number)
     
     contexto = {
         'saldos': saldos,
-        'anio_ciclo': current_year
+        'anio_ciclo': anio_ciclo
     }
     return render(request, 'gestion/saldos.html', contexto)
 
@@ -1359,7 +1431,34 @@ def aprobacion_manager(request):
     solicitudes_pendientes = RegistroVacaciones.objects.filter(
         filtro_gestor,
         estado=RegistroVacaciones.ESTADO_PENDIENTE
-    ).order_by('fecha_solicitud')
+    ).select_related('empleado__departamento').order_by('fecha_solicitud')
+    
+    # 🛡️ Lógica del Asistente de Conflictos (Smart Approvals)
+    for sol in solicitudes_pendientes:
+        if sol.empleado.departamento:
+            # Buscar otros del mismo departamento que se solapen (Aprobadas o Pendientes)
+            solapamientos = RegistroVacaciones.objects.filter(
+                empleado__departamento=sol.empleado.departamento,
+                estado__in=[RegistroVacaciones.ESTADO_APROBADA, RegistroVacaciones.ESTADO_PENDIENTE]
+            ).filter(
+                Q(fecha_inicio__lte=sol.fecha_fin, fecha_fin__gte=sol.fecha_inicio)
+            ).exclude(id=sol.id).values_list('empleado__nombre', 'empleado__apellido', 'estado')
+            
+            sol.overlap_count = len(solapamientos)
+            # Lista de nombres con su estado para el tooltip
+            sol.overlap_names = [f"{n} {a} ({est})" for n, a, est in solapamientos]
+            
+            # Calcular capacidad operativa
+            total_equipo = Empleado.objects.filter(departamento=sol.empleado.departamento).count()
+            if total_equipo > 0:
+                # Contamos al solicitante y a todos los que se solapan (aprobados y pendientes)
+                personal_activo = total_equipo - sol.overlap_count - 1
+                sol.capacidad_pct = max(int((personal_activo / total_equipo) * 100), 0)
+            else:
+                sol.capacidad_pct = 100
+        else:
+            sol.overlap_count = 0
+            sol.capacidad_pct = 100
     
     context = {
         'solicitudes_pendientes': solicitudes_pendientes

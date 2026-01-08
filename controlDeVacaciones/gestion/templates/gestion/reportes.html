@@ -32,37 +32,104 @@
     </div>
     {% endif %}
 
-    <!-- Resumen Cards -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 class="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <i class="fas fa-chart-pie text-blue-600"></i>
-            Resumen de Aprobaciones ({{ contexto.current_year }})
-        </h2>
+    <!-- Resumen Ribbon Premium (Optimizado para muchos empleados) -->
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden">
+        <div class="px-8 py-4 border-b border-slate-100 bg-slate-50/20 flex items-center justify-between">
+            <h2 class="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-3">
+                <span class="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-600 text-white">
+                    <i class="fas fa-chart-line text-[8px]"></i>
+                </span>
+                Resumen de Aprobaciones {{ contexto.current_year }}
+            </h2>
+            <span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
+                {{ resumen_aprobado|length }} Colaboradores
+            </span>
+        </div>
         
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <!-- Contenedor con scroll horizontal suave + Drag functionality -->
+        <div id="resumen-ribbon" class="p-6 overflow-x-auto flex gap-4 no-scrollbar cursor-grab active:cursor-grabbing select-none">
             {% for item in resumen_aprobado %}
-            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all group">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                            {{ item.empleado__nombre }} {{ item.empleado__apellido }}
+            {% cycle 'bg-blue-50/60 border-blue-100/50' 'bg-indigo-50/60 border-indigo-100/50' 'bg-emerald-50/60 border-emerald-100/50' 'bg-amber-50/60 border-amber-100/50' 'bg-rose-50/60 border-rose-100/50' as card_style silent %}
+            {% cycle 'from-blue-200 to-blue-100 text-blue-700' 'from-indigo-200 to-indigo-100 text-indigo-700' 'from-emerald-200 to-emerald-100 text-emerald-700' 'from-amber-200 to-amber-100 text-amber-700' 'from-rose-200 to-rose-100 text-rose-700' as avatar_style silent %}
+            
+            <div class="flex-none w-48 group relative">
+                <div class="flex items-center gap-3 p-3 rounded-2xl {{ card_style }} border group-hover:bg-white group-hover:shadow-lg group-hover:shadow-slate-200/50 transition-all duration-300">
+                    <!-- Mini Avatar Pastel -->
+                    <div class="h-9 w-9 rounded-xl bg-gradient-to-tr {{ avatar_style }} flex items-center justify-center font-black text-[10px] border border-white shadow-sm group-hover:scale-110 transition-all duration-300 uppercase">
+                        {{ item.empleado__nombre|first }}{{ item.empleado__apellido|first }}
+                    </div>
+                    
+                    <div class="min-w-0">
+                        <p class="text-[9px] font-black text-slate-500/70 uppercase tracking-tighter truncate group-hover:text-slate-900 transition-colors">
+                            {{ item.empleado__apellido }}
                         </p>
-                        <div class="flex items-end gap-2">
-                            <span class="text-3xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-base font-black text-slate-900">
                                 {{ item.dias_aprobados|floatformat:0 }}
                             </span>
-                            <span class="text-xs text-gray-500 font-medium mb-1">días</span>
+                            <span class="text-[8px] font-bold text-slate-400 uppercase">días</span>
                         </div>
                     </div>
+
+                    <!-- Indicador decorativo Pastel -->
+                    <div class="absolute top-2 right-2 h-1.5 w-1.5 rounded-full {% cycle 'bg-blue-200' 'bg-indigo-200' 'bg-emerald-200' 'bg-amber-200' 'bg-rose-200' %} group-hover:scale-150 transition-transform"></div>
                 </div>
             </div>
             {% empty %}
-            <div class="col-span-full py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                <p class="text-gray-500 text-sm">No hay solicitudes aprobadas en este ciclo.</p>
+            <div class="w-full py-4 text-center">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Sin registros este año</p>
             </div>
             {% endfor %}
         </div>
     </div>
+
+    <style>
+        /* Ocultar barra de scroll pero mantener funcionalidad */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #resumen-ribbon {
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const slider = document.getElementById('resumen-ribbon');
+            let isDown = false;
+            let startX;
+            let scrollLeft;
+
+            slider.addEventListener('mousedown', (e) => {
+                isDown = true;
+                slider.classList.replace('cursor-grab', 'cursor-grabbing');
+                startX = e.pageX - slider.offsetLeft;
+                scrollLeft = slider.scrollLeft;
+            });
+
+            slider.addEventListener('mouseleave', () => {
+                isDown = false;
+                slider.classList.replace('cursor-grabbing', 'cursor-grab');
+            });
+
+            slider.addEventListener('mouseup', () => {
+                isDown = false;
+                slider.classList.replace('cursor-grabbing', 'cursor-grab');
+            });
+
+            slider.addEventListener('mousemove', (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - slider.offsetLeft;
+                const walk = (x - startX) * 2; // Velocidad del scroll
+                slider.scrollLeft = scrollLeft - walk;
+            });
+        });
+    </script>
 
 <!-- Filtros Mejorados con Búsqueda Instantánea -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -103,7 +170,7 @@
                 <label for="id_empleado" class="block text-xs font-medium text-gray-700 mb-1 ml-1 uppercase tracking-wide">Empleado</label>
                 <div class="relative">
                     <select id="id_empleado" name="empleado" 
-                        class="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all">
+                        class="w-full appearance-none pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all">
                         <option value="Todos" {% if not empleado_id_seleccionado or empleado_id_seleccionado == 'Todos' %}selected{% endif %}>
                             Todos los Empleados
                         </option>
@@ -123,7 +190,7 @@
                 <label for="id_estado" class="block text-xs font-medium text-gray-700 mb-1 ml-1 uppercase tracking-wide">Estado</label>
                 <div class="relative">
                     <select id="id_estado" name="estado"
-                        class="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all">
+                        class="w-full appearance-none pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all">
                         <option value="Todos" {% if not estado_seleccionado or estado_seleccionado == 'Todos' %}selected{% endif %}>
                             Todos los Estados
                         </option>

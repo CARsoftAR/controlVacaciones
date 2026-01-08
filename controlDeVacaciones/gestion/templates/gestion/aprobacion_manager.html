@@ -72,7 +72,7 @@
                             <th class="px-6 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Colaborador</th>
                             <th class="px-6 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Período Solicitado</th>
                             <th class="px-6 py-5 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest">Días</th>
-                            <th class="px-6 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Comentarios</th>
+                            <th class="px-6 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Smart Insight</th>
                             <th class="px-6 py-5 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest">Gestión</th>
                         </tr>
                     </thead>
@@ -86,7 +86,7 @@
                                     </div>
                                     <div>
                                         <p class="font-bold text-slate-900 leading-tight">{{ registro.empleado.nombre }} {{ registro.empleado.apellido }}</p>
-                                        <p class="text-xs text-slate-400">Legajo: {{ registro.empleado.legajo }}</p>
+                                        <p class="text-xs text-slate-400">Sector: {{ registro.empleado.departamento.nombre|default:"General" }}</p>
                                     </div>
                                 </div>
                             </td>
@@ -106,9 +106,28 @@
                                 </span>
                             </td>
                             <td class="px-6 py-5">
-                                <p class="text-xs text-slate-500 max-w-[200px] truncate italic" title="{{ registro.razon|default:'Sin comentarios adicionales.' }}">
-                                    {{ registro.razon|default:'Sin comentarios' }}
-                                </p>
+                                <div class="flex flex-col gap-1.5">
+                                    {% if registro.overlap_count > 0 %}
+                                        <div class="flex items-center gap-2 text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100 w-fit" 
+                                             title="Coincide con: {{ registro.overlap_names|join:', ' }}">
+                                            <i class="fas fa-exclamation-triangle text-xs"></i>
+                                            <span class="text-[10px] font-black uppercase">+{{ registro.overlap_count }} en el mismo sector</span>
+                                        </div>
+                                    {% else %}
+                                        <div class="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 w-fit">
+                                            <i class="fas fa-shield-check text-xs"></i>
+                                            <span class="text-[10px] font-black uppercase">Sin solapamientos</span>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div class="h-full {% if registro.capacidad_pct < 50 %}bg-rose-500{% elif registro.capacidad_pct < 75 %}bg-amber-500{% else %}bg-emerald-500{% endif %}" 
+                                                 style="width: {{ registro.capacidad_pct }}%"></div>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-slate-400">{{ registro.capacidad_pct }}% Capacidad</span>
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-6 py-5">
                                 <div class="flex justify-end gap-2">
@@ -144,12 +163,29 @@
                             </div>
                             <div>
                                 <h4 class="font-bold text-slate-900 leading-tight">{{ registro.empleado.nombre }} {{ registro.empleado.apellido }}</h4>
-                                <span class="text-[10px] text-slate-400 uppercase font-black">Legajo: {{ registro.empleado.legajo }}</span>
+                                <span class="text-[10px] text-slate-400 uppercase font-black">{{ registro.empleado.departamento.nombre|default:"General" }}</span>
                             </div>
                         </div>
                         <span class="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-lg border border-green-100">
                             {{ registro.dias_solicitados }} días
                         </span>
+                    </div>
+
+                    <!-- Smart Insight Mobile -->
+                    <div class="mb-4 p-3 rounded-xl {% if registro.overlap_count > 0 %}bg-rose-50 border border-rose-100{% else %}bg-slate-50 border border-slate-100{% endif %}">
+                        <div class="flex justify-between items-center mb-2">
+                             <span class="text-[9px] uppercase font-black text-slate-400">Capacidad del Equipo</span>
+                             <span class="text-[9px] font-bold {% if registro.capacidad_pct < 50 %}text-rose-600{% else %}text-slate-600{% endif %}">{{ registro.capacidad_pct }}%</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-white rounded-full overflow-hidden border border-slate-200/50">
+                            <div class="h-full {% if registro.capacidad_pct < 50 %}bg-rose-500{% elif registro.capacidad_pct < 75 %}bg-amber-500{% else %}bg-emerald-500{% endif %}" 
+                                 style="width: {{ registro.capacidad_pct }}%"></div>
+                        </div>
+                        {% if registro.overlap_count > 0 %}
+                            <p class="mt-2 text-[10px] text-rose-600 font-bold flex items-center gap-1">
+                                <i class="fas fa-user-friends"></i> +{{ registro.overlap_count }} personas fuera en estas fechas
+                            </p>
+                        {% endif %}
                     </div>
                     
                     <div class="bg-slate-50 rounded-xl p-4 mb-4 flex items-center justify-between gap-2 border border-slate-100">
@@ -180,24 +216,24 @@
             </div>
         {% endif %}
 
-        <!-- Guía de acción rápida -->
-        <div class="mt-12 bg-indigo-900 rounded-3xl p-8 shadow-xl relative overflow-hidden">
-            <div class="absolute top-0 right-0 p-8 opacity-10">
-                <i class="fas fa-info-circle text-[120px] text-white"></i>
+        <!-- Guía de acción rápida Suave -->
+        <div class="mt-12 bg-slate-50 rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <i class="fas fa-info-circle text-[120px] text-slate-900"></i>
             </div>
             <div class="relative z-10 flex flex-col md:flex-row items-center gap-8">
-                <div class="bg-white/10 p-5 rounded-2xl backdrop-blur-sm border border-white/10">
-                    <i class="fas fa-lightbulb text-3xl text-yellow-400"></i>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                    <i class="fas fa-lightbulb text-3xl text-amber-400"></i>
                 </div>
                 <div>
-                    <h4 class="text-xl font-bold text-white mb-2">Consejos de Gestión</h4>
-                    <p class="text-indigo-100 text-sm leading-relaxed">
+                    <h4 class="text-xl font-bold text-slate-800 mb-2 font-[Inter]">Consejos de Gestión</h4>
+                    <p class="text-slate-500 text-sm leading-relaxed max-w-xl">
                         Recuerda verificar el calendario general antes de aprobar múltiples solicitudes para las mismas fechas. 
                         Asegúrate de que el equipo mantenga la capacidad operativa necesaria durante los periodos de alta demanda.
                     </p>
                 </div>
                 <div class="md:ml-auto">
-                    <a href="{% url 'gestion:calendario_global' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-sm backdrop-blur-sm transition-all border border-white/20">
+                    <a href="{% url 'gestion:calendario_global' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 text-indigo-600 rounded-xl font-bold text-sm transition-all border border-indigo-100 shadow-sm">
                         <i class="fas fa-calendar-alt"></i> Ver Calendario General
                     </a>
                 </div>
