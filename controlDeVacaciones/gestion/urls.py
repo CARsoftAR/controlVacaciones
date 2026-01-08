@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import backup_views
 from django.contrib import admin
 from django.urls import path, include
 
@@ -60,6 +61,13 @@ urlpatterns = [
     path('notificacion-pdf/<int:empleado_id>/<int:vacacion_id>/', views.exportar_notificacion_vacaciones_pdf, name='exportar_notificacion_pdf'),
     
 
+    # --- Sistema de Backup ---
+    path('backup/', backup_views.backup_dashboard, name='backup_dashboard'),
+    path('backup/db/crear/', backup_views.crear_backup_db, name='crear_backup_db'),
+    path('backup/code/crear/', backup_views.crear_backup_code, name='crear_backup_code'),
+    path('backup/completo/crear/', backup_views.crear_backup_completo, name='crear_backup_completo'),
+    path('backup/<int:backup_id>/descargar/', backup_views.descargar_backup, name='descargar_backup'),
+    path('backup/<int:backup_id>/eliminar/', backup_views.eliminar_backup, name='eliminar_backup'),
 
     # --- Notificaciones ---
     path('notificaciones/', views.lista_notificaciones, name='lista_notificaciones'),

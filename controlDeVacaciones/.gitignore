@@ -18,3 +18,7 @@ update_*.py
 check_dates.py
 cambiar_a_domingo.py
 # Los scripts de fix suelen ser basura temporal.
+
+# Backups
+backups/
+*.sql

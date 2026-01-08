@@ -1,0 +1,426 @@
+{% extends 'gestion/base.html' %}
+{% load static %}
+
+{% block title %}Sistema de Backup{% endblock %}
+
+{% block extra_css %}
+<style>
+    .backup-dashboard {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .backup-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .backup-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .backup-header p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .backup-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .backup-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+
+    .backup-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        border-color: #667eea;
+    }
+
+    .backup-card-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .backup-card-db .backup-card-icon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .backup-card-code .backup-card-icon {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .backup-card-full .backup-card-icon {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .backup-card h3 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.25rem;
+        color: #2d3748;
+    }
+
+    .backup-card p {
+        margin: 0;
+        color: #718096;
+        font-size: 0.9rem;
+    }
+
+    .backup-card-btn {
+        margin-top: 1rem;
+        width: 100%;
+        padding: 0.75rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: white;
+    }
+
+    .backup-card-db .backup-card-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .backup-card-code .backup-card-btn {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .backup-card-full .backup-card-btn {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .backup-card-btn:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .backup-card-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .backup-history {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .backup-history h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.5rem;
+        color: #2d3748;
+    }
+
+    .backup-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .backup-table thead {
+        background: #f7fafc;
+    }
+
+    .backup-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #4a5568;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .backup-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        color: #2d3748;
+    }
+
+    .backup-table tr:hover {
+        background: #f7fafc;
+    }
+
+    .backup-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .backup-status-completed {
+        background: #c6f6d5;
+        color: #22543d;
+    }
+
+    .backup-status-failed {
+        background: #fed7d7;
+        color: #742a2a;
+    }
+
+    .backup-status-processing {
+        background: #feebc8;
+        color: #7c2d12;
+    }
+
+    .backup-actions-cell {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .backup-btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .backup-btn-download {
+        background: #4299e1;
+        color: white;
+    }
+
+    .backup-btn-download:hover {
+        background: #3182ce;
+    }
+
+    .backup-btn-delete {
+        background: #fc8181;
+        color: white;
+    }
+
+    .backup-btn-delete:hover {
+        background: #f56565;
+    }
+
+    .backup-empty {
+        text-align: center;
+        padding: 3rem;
+        color: #a0aec0;
+    }
+
+    .backup-empty-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="backup-dashboard">
+    <div class="backup-header">
+        <h1>🛡️ Sistema de Backup y Restauración</h1>
+        <p>Protege tu información con backups automáticos de base de datos y código fuente</p>
+    </div>
+
+    <div class="backup-actions">
+        <div class="backup-card backup-card-db">
+            <div class="backup-card-icon">💾</div>
+            <h3>Backup de Base de Datos</h3>
+            <p>Crea una copia de seguridad completa de la base de datos MySQL</p>
+            <button class="backup-card-btn" onclick="crearBackup('db')">
+                <span class="btn-text">Crear Backup DB</span>
+                <span class="btn-spinner" style="display: none;"><span class="spinner"></span> Procesando...</span>
+            </button>
+        </div>
+
+        <div class="backup-card backup-card-code">
+            <div class="backup-card-icon">📦</div>
+            <h3>Backup de Código Fuente</h3>
+            <p>Sube el código actual a GitHub con un commit automático</p>
+            <button class="backup-card-btn" onclick="crearBackup('code')">
+                <span class="btn-text">Crear Backup Code</span>
+                <span class="btn-spinner" style="display: none;"><span class="spinner"></span> Procesando...</span>
+            </button>
+        </div>
+
+        <div class="backup-card backup-card-full">
+            <div class="backup-card-icon">🔄</div>
+            <h3>Backup Completo</h3>
+            <p>Realiza un backup completo de base de datos y código fuente</p>
+            <button class="backup-card-btn" onclick="crearBackup('full')">
+                <span class="btn-text">Crear Backup Completo</span>
+                <span class="btn-spinner" style="display: none;"><span class="spinner"></span> Procesando...</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="backup-history">
+        <h2>📋 Historial de Backups</h2>
+        
+        {% if backups %}
+        <table class="backup-table">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Tamaño</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for backup in backups %}
+                <tr>
+                    <td>
+                        {% if backup.tipo == 'db' %}💾{% elif backup.tipo == 'code' %}📦{% else %}🔄{% endif %}
+                        {{ backup.get_tipo_display }}
+                    </td>
+                    <td>{{ backup.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                    <td>{{ backup.usuario.username|default:"Sistema" }}</td>
+                    <td>
+                        {% if backup.tamaño_mb > 0 %}
+                            {{ backup.tamaño_mb }} MB
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="backup-status backup-status-{{ backup.status }}">
+                            {{ backup.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="backup-actions-cell">
+                            {% if backup.archivo and backup.status == 'completed' %}
+                            <a href="{% url 'descargar_backup' backup.id %}" class="backup-btn backup-btn-download">
+                                ⬇️ Descargar
+                            </a>
+                            {% endif %}
+                            <button class="backup-btn backup-btn-delete" onclick="eliminarBackup({{ backup.id }})">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="backup-empty">
+            <div class="backup-empty-icon">📦</div>
+            <p>No hay backups registrados aún</p>
+            <p>Crea tu primer backup usando las opciones de arriba</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function crearBackup(tipo) {
+    const btn = event.target.closest('button');
+    const btnText = btn.querySelector('.btn-text');
+    const btnSpinner = btn.querySelector('.btn-spinner');
+    
+    // Deshabilitar botón y mostrar spinner
+    btn.disabled = true;
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline';
+    
+    let url;
+    if (tipo === 'db') {
+        url = '{% url "crear_backup_db" %}';
+    } else if (tipo === 'code') {
+        url = '{% url "crear_backup_code" %}';
+    } else {
+        url = '{% url "crear_backup_completo" %}';
+    }
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Backup creado exitosamente', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('❌ Error al crear el backup', 'error');
+            btn.disabled = false;
+            btnText.style.display = 'inline';
+            btnSpinner.style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('❌ Error al crear el backup', 'error');
+        btn.disabled = false;
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+    });
+}
+
+function eliminarBackup(backupId) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este backup?')) {
+        return;
+    }
+    
+    fetch(`/gestion/backup/${backupId}/eliminar/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Backup eliminado exitosamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('❌ Error al eliminar el backup', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('❌ Error al eliminar el backup', 'error');
+    });
+}
+</script>
+{% endblock %}
