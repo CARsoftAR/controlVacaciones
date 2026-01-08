@@ -354,7 +354,7 @@ def crear_backup_github(request):
     
     try:
         project_dir = str(settings.BASE_DIR)
-        # Buscar raíz real
+        # Buscar raíz real de Git (puede estar arriba de BASE_DIR)
         current = os.path.abspath(project_dir)
         found_root = current
         for _ in range(5):
@@ -369,45 +369,67 @@ def crear_backup_github(request):
         commit_hash = ""
         git_msg = ""
         
-        # 1. Verificar cambios
+        # 1. Verificar estado de Git para detectar bloqueos
+        if os.path.exists(os.path.join(project_dir, '.git', 'index.lock')):
+            try:
+                os.remove(os.path.join(project_dir, '.git', 'index.lock'))
+                git_msg += "(Lock de Git liberado) "
+            except:
+                raise Exception("Git está bloqueado por otro proceso (.git/index.lock).")
+
+        # 2. Verificar cambios y realizar commit
         status_res = subprocess.run(['git', 'status', '--porcelain'], cwd=project_dir, capture_output=True, text=True)
         if status_res.stdout.strip():
-            subprocess.run(['git', 'add', '-A'], cwd=project_dir, check=True, capture_output=True)
-            commit_msg = f'Sincronización manual - {datetime.now().strftime("%Y-%m-%d %H:%M")}'
-            subprocess.run(['git', 'commit', '-m', commit_msg], cwd=project_dir, capture_output=True)
+            # Agregar cambios
+            add_res = subprocess.run(['git', 'add', '-A'], cwd=project_dir, capture_output=True, text=True)
+            if add_res.returncode != 0:
+                raise Exception(f"Error al agregar archivos: {add_res.stderr}")
             
-            # 2. Intentar push
+            # Commit
+            commit_msg = f'Sincronización manual - {datetime.now().strftime("%Y-%m-%d %H:%M")}'
+            commit_res = subprocess.run(['git', 'commit', '-m', commit_msg], cwd=project_dir, capture_output=True, text=True)
+            if commit_res.returncode != 0:
+                raise Exception(f"Error al hacer commit: {commit_res.stderr}")
+            
+            # 3. Intentar push
             push_res = subprocess.run(['git', 'push', 'origin', 'main'], cwd=project_dir, capture_output=True, text=True)
             if push_res.returncode != 0:
-                git_msg = f"Cambios commiteados localmente, pero falló el push: {push_res.stderr}"
+                git_msg += f"Cambios guardados localmente, pero falló el envío: {push_res.stderr}"
+                # No lanzamos excepción aquí para que el backup se registre como 'completed' con advertencia
+                # o podrías preferir que sea 'failed'
             else:
-                git_msg = "Sincronizado con GitHub exitosamente."
+                git_msg += "Sincronizado con GitHub exitosamente."
         else:
             # Si no hay cambios, intentar push por si hay commits pendientes
             push_res = subprocess.run(['git', 'push', 'origin', 'main'], cwd=project_dir, capture_output=True, text=True)
-            if "Everything up-to-date" in push_res.stderr or push_res.returncode == 0:
-                git_msg = "Código ya está al día en GitHub."
+            if push_res.returncode == 0:
+                git_msg += "El código ya estaba al día o se enviaron cambios pendientes."
             else:
-                git_msg = f"Error al sincronizar con GitHub: {push_res.stderr}"
+                if "Everything up-to-date" in push_res.stderr:
+                    git_msg += "Código ya está al día en GitHub."
+                else:
+                    git_msg += f"Error al sincronizar: {push_res.stderr}"
 
-        # 3. Obtener hash final
+        # 4. Obtener hash final
         hash_res = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=project_dir, capture_output=True, text=True)
         commit_hash = hash_res.stdout.strip()
         
         backup.commit_hash = commit_hash
+        backup.mensaje_error = git_msg if "Error" in git_msg or "falló" in git_msg else ""
         backup.status = 'completed'
         backup.save()
         
         return JsonResponse({
             'success': True,
             'backup_id': backup.id,
-            'message': f'Sincronización completada. {git_msg}'
+            'message': f'Sincronización finalizada. {git_msg}'
         })
     except Exception as e:
+        error_str = str(e)
         backup.status = 'failed'
-        backup.mensaje_error = str(e)
+        backup.mensaje_error = error_str
         backup.save()
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'error': error_str}, status=500)
 
 
 @login_required
