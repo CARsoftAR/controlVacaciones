@@ -67,7 +67,7 @@ class Command(BaseCommand):
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'✅ Backup creado exitosamente:\n'
+                    f'OK - Backup creado exitosamente:\n'
                     f'   Archivo: {backup_file}\n'
                     f'   Tamaño: {size_mb:.2f} MB'
                 )
@@ -78,7 +78,7 @@ class Command(BaseCommand):
         except subprocess.CalledProcessError as e:
             self.stdout.write(
                 self.style.ERROR(
-                    f'❌ Error al crear el backup:\n{e.stderr}'
+                    f'ERROR al crear el backup:\n{e.stderr}'
                 )
             )
             # Eliminar archivo parcial si existe
@@ -87,6 +87,6 @@ class Command(BaseCommand):
             raise
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'❌ Error inesperado: {str(e)}')
+                self.style.ERROR(f'ERROR inesperado: {str(e)}')
             )
             raise

@@ -26,7 +26,7 @@ class Command(BaseCommand):
         
         # Verificar que el archivo existe
         if not os.path.exists(backup_file):
-            raise CommandError(f'❌ El archivo {backup_file} no existe')
+            raise CommandError(f'ERROR: El archivo {backup_file} no existe')
 
         # Configuración de la base de datos
         db_config = settings.DATABASES['default']
@@ -40,7 +40,7 @@ class Command(BaseCommand):
         if not options['force']:
             self.stdout.write(
                 self.style.WARNING(
-                    f'⚠️  ADVERTENCIA: Esta operación sobrescribirá la base de datos "{db_name}".\n'
+                    f'ADVERTENCIA: Esta operación sobrescribirá la base de datos "{db_name}".\n'
                     f'   Archivo de backup: {backup_file}\n'
                 )
             )
@@ -75,7 +75,7 @@ class Command(BaseCommand):
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'✅ Base de datos restaurada exitosamente desde:\n'
+                    f'OK - Base de datos restaurada exitosamente desde:\n'
                     f'   {backup_file}'
                 )
             )
@@ -83,12 +83,12 @@ class Command(BaseCommand):
         except subprocess.CalledProcessError as e:
             self.stdout.write(
                 self.style.ERROR(
-                    f'❌ Error al restaurar la base de datos:\n{e.stderr}'
+                    f'ERROR al restaurar la base de datos:\n{e.stderr}'
                 )
             )
             raise
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'❌ Error inesperado: {str(e)}')
+                self.style.ERROR(f'ERROR inesperado: {str(e)}')
             )
             raise

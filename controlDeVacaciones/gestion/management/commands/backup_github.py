@@ -40,16 +40,16 @@ class Command(BaseCommand):
                 
                 self.stdout.write(self.style.WARNING('Haciendo push a origin main...'))
                 subprocess.run(['git', 'push', 'origin', 'main'], cwd=project_dir, check=True)
-                self.stdout.write(self.style.SUCCESS('✅ Sincronización con GitHub completada exitosamente.'))
+                self.stdout.write(self.style.SUCCESS('OK - Sincronización con GitHub completada exitosamente.'))
             else:
                 self.stdout.write(self.style.SUCCESS('El código ya está al día localmente.'))
                 self.stdout.write(self.style.WARNING('Intentando push por si hay commits pendientes...'))
                 subprocess.run(['git', 'push', 'origin', 'main'], cwd=project_dir, check=True)
-                self.stdout.write(self.style.SUCCESS('✅ Push completado (si había algo pendiente).'))
+                self.stdout.write(self.style.SUCCESS('OK - Push completado (si había algo pendiente).'))
 
         except subprocess.CalledProcessError as e:
-            self.stdout.write(self.style.ERROR(f'❌ Error en Git: {str(e)}'))
+            self.stdout.write(self.style.ERROR(f'ERROR en Git: {str(e)}'))
             raise
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'❌ Error inesperado: {str(e)}'))
+            self.stdout.write(self.style.ERROR(f'ERROR inesperado: {str(e)}'))
             raise
