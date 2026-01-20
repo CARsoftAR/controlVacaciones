@@ -633,6 +633,12 @@
                 const target = this.getAttribute('href');
                 // Only show if it's a valid internal link and not a hash/anchor
                 if (target && target.startsWith('/') && !target.startsWith('#')) {
+                    // FIX: No mostrar loader para descargas (PDF, Excel, etc.)
+                    // Excluir si tiene clase 'pdf-btn', si la URL dice 'exportar' o tiene atributo download
+                    if (this.classList.contains('pdf-btn') || target.includes('exportar') || this.hasAttribute('download')) {
+                        return;
+                    }
+
                     const loader = document.getElementById('global-loader');
                     loader.style.display = 'flex';
                     // Small delay to allow display:flex to apply before removing opacity class

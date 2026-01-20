@@ -1617,11 +1617,12 @@ def calendario_global(request):
                     fecha_fin__gte=fecha_inicio_total
                 )
                 
-                # Obtener lista de vacaciones futuras aprobadas (para el selector PDF)
+                # Obtener lista de vacaciones para el selector PDF
+                # Incluimos Aprobadas y Pendientes para asegurar que el usuario vea todo
+                # Y quitamos el filtro de fecha para evitar ocultar períodos recientes por error.
                 vacaciones_futuras = list(RegistroVacaciones.objects.filter(
                     empleado=emp,
-                    estado=RegistroVacaciones.ESTADO_APROBADA,
-                    fecha_fin__gte=date.today()
+                    estado__in=[RegistroVacaciones.ESTADO_APROBADA, RegistroVacaciones.ESTADO_PENDIENTE]
                 ).order_by('fecha_inicio'))
                 
                 empleados_list.append({
@@ -1711,9 +1712,9 @@ def exportar_calendario_excel(request):
         
         # 1. Logo
         # CORRECCIÓN: Usamos la ruta correcta (la misma que en el PDF)
-        logo_path = os.path.join(settings.BASE_DIR.parent, 'gestion', 'imagenes', 'logo', 'logo.png')
+        logo_path = os.path.join(str(settings.BASE_DIR), 'gestion', 'imagenes', 'logo', 'logo.png')
         if not os.path.exists(logo_path):
-            logo_path = os.path.join(settings.BASE_DIR.parent, 'gestion', 'imagenes', 'logo', 'logo.jpg')
+            logo_path = os.path.join(str(settings.BASE_DIR), 'gestion', 'imagenes', 'logo', 'logo.jpg')
             
         if os.path.exists(logo_path):
             try:
@@ -2422,18 +2423,59 @@ def exportar_notificacion_vacaciones_pdf(request, empleado_id, vacacion_id):
     registro = get_object_or_404(RegistroVacaciones, pk=vacacion_id)
 
     # Calcular saldo restante
+    # Calcular saldo restante
     # FIX: Filtrar por empleado Y por el año (ciclo) de la vacación para evitar "MultipleObjectsReturned"
-    anio_ciclo = registro.fecha_inicio.year
+    # Si la fecha es antes de Octubre, corresponde al periodo del año anterior
+    if registro.fecha_inicio.month < 10:
+        anio_ciclo = registro.fecha_inicio.year - 1
+    else:
+        anio_ciclo = registro.fecha_inicio.year
+
+    # CALCULAR TOTAL DEL PERIODO ROBUSTO
+    # 1. Recuperar datos del saldo (Iniciales + Adicionales)
     saldo_qs = SaldoVacaciones.objects.filter(empleado=empleado, ciclo=anio_ciclo)
+    dias_iniciales = 0
+    dias_adicionales = 0
     
-    # Si existe saldo para ese año, lo usamos. Si no, tomamos el primero que aparezca o 0.
     if saldo_qs.exists():
         saldo = saldo_qs.first()
-        dias_restantes = saldo.total_disponible()
-    else:
-        # Fallback: Intentar obtener el saldo del año actual si no coincide el de la vacación
-        saldo_actual = SaldoVacaciones.objects.filter(empleado=empleado, ciclo=datetime.now().year).first()
-        dias_restantes = saldo_actual.total_disponible() if saldo_actual else 0
+        dias_iniciales = saldo.dias_iniciales
+        dias_adicionales = saldo.dias_adicionales or 0
+        
+    # 2. Calcular base real (Max entre LCT y Manual)
+    dias_base_lct = empleado.dias_base_lct(anio_ciclo)
+    dias_base_periodo = max(dias_iniciales, dias_base_lct)
+    
+    total_periodo = dias_base_periodo + dias_adicionales
+    
+    # 3. FIX: Si el total del 2025 es muy bajo (ej: 7 semestral) pero el usuario ve 28 en Dashboard (2026)
+    # y espera descontar de ahí, usamos el total del próximo ciclo como referencia mejorada.
+    if total_periodo < 14:
+        # Check next cycle
+        saldo_next = SaldoVacaciones.objects.filter(empleado=empleado, ciclo=anio_ciclo + 1).first()
+        if saldo_next and saldo_next.dias_totales() > total_periodo:
+            total_periodo = saldo_next.dias_totales()
+
+    # Calcular consumo acumulado HASTA esta vacación (inclusive) para el mismo ciclo
+    # Esto asegura que si imprimo la primera vacación, me muestre el saldo restante en ese momento.
+    
+    # 1. Identificar rango de fechas del ciclo (Octubre AñoAnterior - Septiembre AñoSiguiente ???)
+    # Simplificación: Usamos la lógica de "pertenencia" al ciclo basada en anio_ciclo
+    # Buscamos todas las aprobadas que corresponden a este ciclo Y son anteriores o iguales a esta
+    
+    vacaciones_ciclo = []
+    todas_vacs = RegistroVacaciones.objects.filter(empleado=empleado, estado='Aprobada').order_by('fecha_inicio')
+    
+    consumo_acumulado = 0
+    for vac in todas_vacs:
+        # Determinar ciclo de CADA vacación para ver si suma
+        v_ciclo = vac.fecha_inicio.year - 1 if vac.fecha_inicio.month < 10 else vac.fecha_inicio.year
+        
+        if v_ciclo == anio_ciclo:
+            if vac.fecha_inicio <= registro.fecha_inicio:
+                consumo_acumulado += vac.dias_solicitados
+
+    dias_restantes = total_periodo - consumo_acumulado
 
     # Calcular fecha de retoma (día siguiente al fin)
     fecha_retoma = registro.fecha_fin + timedelta(days=1)
@@ -2449,10 +2491,11 @@ def exportar_notificacion_vacaciones_pdf(request, empleado_id, vacacion_id):
     top_y = height - 90 # Generamos espacio adecuado desde el borde superior
 
     # --- LOGO ---
-    logo_path = os.path.join(str(settings.BASE_DIR.parent), 'gestion', 'imagenes', 'logo', 'logo.png')
+    # FIX: BASE_DIR ya apunta a 'controlDeVacaciones' (el contenedor de apps), no hace falta .parent
+    logo_path = os.path.join(str(settings.BASE_DIR), 'gestion', 'imagenes', 'logo', 'logo.png')
     
     if not os.path.exists(logo_path):
-         logo_path = os.path.join(str(settings.BASE_DIR.parent), 'gestion', 'imagenes', 'logo', 'logo.jpg')
+         logo_path = os.path.join(str(settings.BASE_DIR), 'gestion', 'imagenes', 'logo', 'logo.jpg')
 
     logo_width = 110
     logo_margin_left = 60 # 2.1cm aprox, alejado del borde
@@ -2534,8 +2577,10 @@ def exportar_notificacion_vacaciones_pdf(request, empleado_id, vacacion_id):
     pdf.drawString(left_margin, current_y, "PERIODO DE VACACIONES (AÑO):")
     pdf.setFont("Helvetica", 11)
     # Asumimos que el periodo es el año de inicio de la vacación o el actual
-    anio_periodo = registro.fecha_inicio.year 
-    pdf.drawString(280, current_y, str(anio_periodo))
+    # CORRECCIÓN: Si es antes de Octubre, corresponde al periodo del año anterior
+    # Usamos la variable anio_ciclo ya calculada previamente
+        
+    pdf.drawString(280, current_y, str(anio_ciclo))
 
     current_y -= 30
 
@@ -2576,22 +2621,21 @@ def exportar_notificacion_vacaciones_pdf(request, empleado_id, vacacion_id):
 
     current_y -= 40
 
-    # ANTICIPO DE SUELDO
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(left_margin, current_y, "ANTICIPO DE SUELDO:")
+    # ANTICIPO DE SUELDO (Eliminado a pedido)
+    # pdf.setFont("Helvetica-Bold", 11)
+    # pdf.drawString(left_margin, current_y, "ANTICIPO DE SUELDO:")
     
-    # Checkboxes ficticios (cuadraditos)
-    pdf.setFont("Helvetica", 14) 
-    pdf.rect(230, current_y, 12, 12, fill=0) # Box SI
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(250, current_y + 2, "SI")
+    # Checkboxes ficticios (Eliminado a pedido)
+    # pdf.setFont("Helvetica", 14) 
+    # pdf.rect(230, current_y, 12, 12, fill=0) # Box SI
+    # pdf.setFont("Helvetica", 11)
+    # pdf.drawString(250, current_y + 2, "SI")
 
-    pdf.rect(300, current_y, 12, 12, fill=0) # Box NO
-    pdf.drawString(320, current_y + 2, "NO")
+    # pdf.rect(300, current_y, 12, 12, fill=0) # Box NO
+    # pdf.drawString(320, current_y + 2, "NO")
 
     current_y -= 25
-    pdf.setFont("Helvetica", 7)
-    pdf.drawString(left_margin, current_y, "POR FAVOR MARCAR CON UNA X EL QUE NO CORRESPONDA.")
+    # Texto de instrucción eliminado a pedido del usuario
 
     # --- FIRMAS ---
     current_y -= 100 # Espacio para firmas

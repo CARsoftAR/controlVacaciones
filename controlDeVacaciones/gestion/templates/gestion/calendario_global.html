@@ -123,18 +123,58 @@
                                     </div>
                                     
                                     {% if emp_data.vacaciones_futuras %}
-                                        <div class="flex items-center gap-1 flex-wrap justify-end" style="max-width: 120px;">
-                                            {% for vac in emp_data.vacaciones_futuras %}
+                                        <div class="flex items-center gap-1 justify-end" style="min-width: 40px;">
+                                            {% if emp_data.vacaciones_futuras|length == 1 %}
+                                                <!-- CASO 1: Solo una vacación -> Botón Directo -->
+                                                {% with vac=emp_data.vacaciones_futuras.0 %}
                                                 <a href="{% url 'gestion:exportar_notificacion_pdf' emp_data.empleado.id vac.id %}" 
                                                    class="pdf-btn relative group/btn" 
-                                                   title="Imprimir: {{ vac.fecha_inicio|date:'d/m' }} al {{ vac.fecha_fin|date:'d/m' }}">
+                                                   title="Imprimir Notificación: {{ vac.fecha_inicio|date:'d/m' }}">
                                                     <i class="fas fa-file-pdf"></i>
-                                                    <!-- Mini Label Flotante (Fecha) -->
-                                                    <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                                                        {{ vac.fecha_inicio|date:"d/b" }}
+                                                    <!-- Tooltip simple -->
+                                                    <span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] font-bold px-2 py-1 rounded shadow-lg opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                                                        {{ vac.fecha_inicio|date:"d/m/y" }}
                                                     </span>
                                                 </a>
-                                            {% endfor %}
+                                                {% endwith %}
+                                            {% else %}
+                                                <!-- CASO 2: Múltiples vacaciones -> Dropdown -->
+                                                <div class="relative group/pdf z-50">
+                                                    <button class="pdf-btn relative bg-white border-slate-200 cursor-pointer">
+                                                        <i class="fas fa-file-pdf text-red-500"></i>
+                                                        <span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                                                            {{ emp_data.vacaciones_futuras|length }}
+                                                        </span>
+                                                    </button>
+                                                    
+                                                    <!-- Dropdown Menu (Aparece al pasar el mouse) -->
+                                                    <div class="pdf-dropdown">
+                                                        <div class="px-3 py-2 bg-slate-50 border-b border-slate-100 text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                                                            Elegir Fecha
+                                                        </div>
+                                                        {% for vac in emp_data.vacaciones_futuras %}
+                                                        <a href="{% url 'gestion:exportar_notificacion_pdf' emp_data.empleado.id vac.id %}" class="dropdown-item group/item">
+                                                            <div class="w-6 text-center">
+                                                                <span class="text-[9px] font-bold text-slate-400 group-hover/item:text-red-500">
+                                                                    {{ forloop.counter }}
+                                                                </span>
+                                                            </div>
+                                                            <div class="flex flex-col text-left">
+                                                                <span class="text-[10px] font-bold text-slate-700 group-hover/item:text-red-600">
+                                                                    {{ vac.fecha_inicio|date:"d/m/y" }} - {{ vac.fecha_fin|date:"d/m/y" }}
+                                                                </span>
+                                                                <div class="flex items-center gap-2">
+                                                                    <span class="text-[9px] text-slate-400 font-medium">{{ vac.dias_solicitados }} días</span>
+                                                                    {% if vac.estado == 'Pendiente' %}
+                                                                    <span class="text-[8px] bg-amber-100 text-amber-700 px-1 rounded">Pendiente</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                        </a>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            {% endif %}
                                         </div>
                                     {% endif %}
                                 </div>
@@ -144,24 +184,28 @@
                             <td class="kpi-cell bg-emerald-50/30 text-emerald-600 font-black border-l border-slate-100">{{ emp_data.dias_acumulados }}</td>
                             <td class="kpi-cell bg-indigo-50/30 text-indigo-700 font-black border-l border-slate-100 border-r-2 border-r-indigo-100">{{ emp_data.dias_restantes }}</td>
 
-                            <!-- Celdas de Vacaciones -->
+                            <!-- Celdas de Vacaciones (CLICKEABLES) -->
                             {% for mes in meses_data %}
                                 {% for semana in mes.semanas %}
-                                    {% with estado=semana.dias|estado_vacacion_semana:emp_data.vacaciones %}
-                                        {% if estado == 'aprobada' %}
-                                            <td class="semana-cell group/cell">
-                                                <div class="vac-block aprobada flex items-center justify-center text-[12px] font-black text-white">
-                                                    {{ semana.dias|dias_vacacion_semana:emp_data.vacaciones }}
-                                                </div>
-                                                <div class="tooltip">Aprobada: {{ semana.dias|dias_vacacion_semana:emp_data.vacaciones }} días</div>
-                                            </td>
-                                        {% elif estado == 'pendiente' %}
-                                            <td class="semana-cell group/cell">
-                                                <div class="vac-block pendiente flex items-center justify-center text-[12px] font-black text-white">
-                                                    {{ semana.dias|dias_vacacion_semana:emp_data.vacaciones }}
-                                                </div>
-                                                <div class="tooltip">Pendiente: {{ semana.dias|dias_vacacion_semana:emp_data.vacaciones }} días</div>
-                                            </td>
+                                    {% with vac_obj=semana.dias|get_vacacion_semana:emp_data.vacaciones %}
+                                        {% if vac_obj %}
+                                            {% if vac_obj.estado == 'Aprobada' %}
+                                                <td class="semana-cell group/cell cursor-pointer" 
+                                                    onclick="window.open('{% url 'gestion:exportar_notificacion_pdf' emp_data.empleado.id vac_obj.id %}', '_blank');"
+                                                    title="Clic para imprimir Notificación: {{ vac_obj.fecha_inicio|date:'d/m' }} - {{ vac_obj.fecha_fin|date:'d/m' }}">
+                                                    
+                                                    <div class="vac-block aprobada flex items-center justify-center text-[12px] font-black text-white hover:scale-105 transition-transform shadow-sm">
+                                                        {{ semana.dias|dias_vacacion_semana:emp_data.vacaciones }}
+                                                    </div>
+                                                </td>
+                                            {% elif vac_obj.estado == 'Pendiente' %}
+                                                <td class="semana-cell group/cell">
+                                                    <div class="vac-block pendiente flex items-center justify-center text-[12px] font-black text-white">
+                                                        {{ semana.dias|dias_vacacion_semana:emp_data.vacaciones }}
+                                                    </div>
+                                                    <div class="tooltip">Pendiente: {{ semana.dias|dias_vacacion_semana:emp_data.vacaciones }} días</div>
+                                                </td>
+                                            {% endif %}
                                         {% else %}
                                             <td class="semana-cell hover:bg-slate-50 transition-colors"></td>
                                         {% endif %}
@@ -277,6 +321,9 @@
     .semanas-header .restan-col-sub { background: #e0e7ff !important; z-index: 120 !important; color: #4338ca !important; }
 
     .empleado-nombre { background: white !important; height: 50px; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #e2e8f0; }
+    /* FIX: Elevar la celda al hacer hover para que el dropdown tape a los headers pegajosos si es necesario */
+    .empleado-nombre:hover { z-index: 99 !important; }
+    
     .kpi-cell { text-align: center; font-size: 13px; background: white !important; border-bottom: 1px solid #f1f5f9; }
 
     /* Estilo de Celdas Body */

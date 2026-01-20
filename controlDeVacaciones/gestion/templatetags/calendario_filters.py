@@ -38,6 +38,31 @@ def semana_tiene_vacaciones(dias_semana, vacaciones):
     return False
 
 @register.filter
+def get_vacacion_semana(dias_semana, vacaciones):
+    """
+    Retorna el OBJETO de vacación que coincide con esta semana.
+    Prioriza Aprobada sobre Pendiente.
+    """
+    if not dias_semana:
+        return None
+        
+    # Primera pasada: Buscar Aprobadas
+    for dia in dias_semana:
+        for vacacion in vacaciones:
+            if vacacion.fecha_inicio <= dia <= vacacion.fecha_fin:
+                if vacacion.estado == 'Aprobada':
+                    return vacacion
+
+    # Segunda pasada: Buscar Pendientes
+    for dia in dias_semana:
+        for vacacion in vacaciones:
+            if vacacion.fecha_inicio <= dia <= vacacion.fecha_fin:
+                 if vacacion.estado == 'Pendiente':
+                    return vacacion
+                    
+    return None
+
+@register.filter
 def estado_vacacion_semana(dias_semana, vacaciones):
     """
     Retorna el estado de la vacación para una semana específica.
